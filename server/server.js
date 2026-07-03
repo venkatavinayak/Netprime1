@@ -63,8 +63,22 @@ app.use('/api/user', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Serve the static frontend assets from client/ folder
-app.use(express.static(path.join(__dirname, '../client')));
+// Serve the static frontend assets from client/ folder (if it exists)
+const fs = require('fs');
+const clientPath = path.join(__dirname, '../client');
+
+if (fs.existsSync(clientPath)) {
+  app.use(express.static(clientPath));
+}
+
+// Root API Health Check
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'NetPrime API Server is running.',
+    timestamp: new Date()
+  });
+});
 
 // Catch-all route to serve index.html for undefined views
 app.get(/.*/, (req, res, next) => {
@@ -72,7 +86,16 @@ app.get(/.*/, (req, res, next) => {
   if (req.url.startsWith('/api/')) {
     return res.status(404).json({ error: 'Endpoint not found.' });
   }
-  res.sendFile(path.join(__dirname, '../client', 'index.html'));
+  
+  const indexFile = path.join(clientPath, 'index.html');
+  if (fs.existsSync(indexFile)) {
+    res.sendFile(indexFile);
+  } else {
+    res.json({
+      status: 'online',
+      message: 'NetPrime API is running. Client static assets are hosted on Netlify.'
+    });
+  }
 });
 
 // Global Error Handler
