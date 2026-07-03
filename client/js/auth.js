@@ -290,7 +290,12 @@
           await window.NetPrimeState.loginWithGoogle(idToken);
           hideAuthModal();
           showToast('Google Sign In successful!');
-          setTimeout(() => window.location.reload(), 800);
+          const isAuthPage = window.location.pathname.includes('login.html') || window.location.pathname.includes('signup.html');
+          if (isAuthPage) {
+            setTimeout(() => window.location.href = './index.html', 800);
+          } else {
+            setTimeout(() => window.location.reload(), 800);
+          }
         } catch (error) {
           console.error('Firebase OAuth error:', error);
           showToast(error.message || 'Google Login failed.');
@@ -315,7 +320,12 @@
             await window.NetPrimeState.loginWithGoogle(mockIdToken);
             hideAuthModal();
             showToast('Mock Google Login successful!');
-            setTimeout(() => window.location.reload(), 800);
+            const isAuthPage = window.location.pathname.includes('login.html') || window.location.pathname.includes('signup.html');
+            if (isAuthPage) {
+              setTimeout(() => window.location.href = './index.html', 800);
+            } else {
+              setTimeout(() => window.location.reload(), 800);
+            }
           } catch (error) {
             showToast('Mock Google Login failed.');
             btnElement.innerHTML = 'Google Sign In';
