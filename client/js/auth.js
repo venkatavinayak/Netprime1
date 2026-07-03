@@ -409,6 +409,81 @@
     }
   }
 
+  // Handle passwordless email magic link sign in if present
+  function checkUrlEmailMagicLink() {
+    const isFirebaseAvailable = firebaseInitialized || (typeof firebase !== 'undefined' && firebase.apps.length > 0);
+    if (!isFirebaseAvailable) return;
+    
+    if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
+      let email = window.localStorage.getItem('emailForSignIn');
+      if (!email) {
+        email = window.prompt('Please enter your email to confirm sign-in:');
+      }
+      
+      if (email) {
+        showToast('Verifying Magic Link...');
+        
+        firebase.auth().signInWithEmailLink(email, window.location.href)
+          .then(async (result) => {
+            window.localStorage.removeItem('emailForSignIn');
+            
+            // Get the secure ID token
+            const idToken = await result.user.getIdToken();
+            
+            showToast('Magic Link verified. Finalizing...');
+            
+            // Send token to backend
+            await window.NetPrimeState.loginWithGoogle(idToken);
+            
+            showToast('Success! Logged in via Magic Link.');
+            
+            // Clear URL address bar parameters
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+            
+            setTimeout(() => {
+              window.location.href = './index.html';
+            }, 800);
+          })
+          .catch((err) => {
+            console.error('Magic link sign-in error:', err);
+            showToast(err.message || 'Failed to authenticate Magic Link.');
+          });
+      }
+    }
+  }
+
+  // Global helper to send email verification magic link
+  window.sendMagicLink = async function(email, btnElement) {
+    const isFirebaseAvailable = await initFirebase();
+    if (!isFirebaseAvailable) {
+      showToast('Firebase not configured. Magic Link is unavailable.');
+      return;
+    }
+    
+    try {
+      btnElement.disabled = true;
+      const originalText = btnElement.textContent;
+      btnElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending link...';
+      
+      const actionCodeSettings = {
+        url: window.location.href.split('?')[0] + '?emailLink=true',
+        handleCodeInApp: true
+      };
+      
+      await firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', email);
+      
+      showToast('Success! Magic login link sent to your email.');
+      btnElement.textContent = 'Link Sent!';
+    } catch (error) {
+      console.error('Magic link send error:', error);
+      showToast(error.message || 'Failed to send magic link.');
+      btnElement.disabled = false;
+      btnElement.textContent = 'Send Magic Link';
+    }
+  };
+
   // Global methods attached to window
   window.showAuthModal = function(view = 'login') {
     injectAuthModals();
@@ -442,12 +517,19 @@
   };
 
   // Wait for state initialization and automatically inject on DOMContentLoaded
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     injectAuthModals();
     checkUrlPasswordReset();
     
-    // Auto-open login modal if redirected with showLogin flag
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // Auto-initialize Firebase if landing from a magic link
+    if (urlParams.get('emailLink') === 'true') {
+      await initFirebase();
+      checkUrlEmailMagicLink();
+    }
+    
+    // Auto-open login modal if redirected with showLogin flag
     if (urlParams.get('showLogin') === 'true') {
       setTimeout(() => {
         window.showAuthModal('login');
