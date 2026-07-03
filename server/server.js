@@ -29,6 +29,7 @@ connectDB();
 initSubscriptionScheduler();
 
 const app = express();
+app.set('trust proxy', 1); // Trust Render proxy load balancers for rate-limiting
 
 // Security Middleware Headers & Limiter
 app.use(helmetConfig);
