@@ -86,9 +86,10 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // Auto-redirect if already logged in
-      const checkAndRedirect = () => {
-        if (window.NetPrimeState && window.NetPrimeState.currentUser && window.NetPrimeState.currentUser.email) {
-          if (window.NetPrimeState.currentUser.email === 'admin@netprime.com') {
+      const checkAndRedirect = (user = null) => {
+        const currentUser = user || (window.NetPrimeState ? window.NetPrimeState.currentUser : null);
+        if (currentUser && currentUser.email && currentUser.email !== 'guest@netprime.com') {
+          if (currentUser.email === 'admin@netprime.com') {
             window.location.href = './admin.html';
           } else {
             window.location.href = './index.html';
@@ -96,10 +97,8 @@
         }
       };
       
-      if (window.NetPrimeState) {
-        window.NetPrimeState.addEventListener('userChange', checkAndRedirect);
-        checkAndRedirect();
-      }
+      window.addEventListener('netprime_userChange', (e) => checkAndRedirect(e.detail));
+      checkAndRedirect();
 
       const loginForm = document.getElementById('standalone-login-form');
       const googleBtn = document.getElementById('standalone-google-btn');
