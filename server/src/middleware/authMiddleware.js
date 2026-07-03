@@ -77,10 +77,11 @@ const handleRefreshFallback = async (req, res, next) => {
     const newAccessToken = generateAccessToken(user);
 
     // Set new Access Token in HTTP-only cookie
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie('accessToken', newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 15 * 60 * 1000 // 15 mins
     });
 

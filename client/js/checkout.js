@@ -240,6 +240,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Initiate Checkout via Stripe
+  const handleStripePayment = async (submitBtn) => {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Contacting payment gateway...';
+
+    try {
+      const res = await fetch('/api/payments/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: selectedPlan })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create payment session.');
+
+      // Redirect to Stripe's secure hosted page
+      window.location.href = data.url;
+    } catch (err) {
+      window.showToastMessage(err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Authorize Secure Payment';
+    }
+  };
+
   // Render Success Receipt view
   function showSuccessScreen(gateway, paymentId, price) {
     // Refresh user state in state manager
@@ -268,12 +291,12 @@ document.addEventListener('DOMContentLoaded', () => {
     injectConfettiParticles();
   }
 
-  // Bind form submissions to Razorpay initiates
+  // Bind form submissions to Stripe or Razorpay initiates
   if (creditCardForm) {
     creditCardForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const submitBtn = creditCardForm.querySelector('.btn-form-submit');
-      handleRazorpayPayment(submitBtn, 'Credit Card');
+      handleStripePayment(submitBtn);
     });
   }
 

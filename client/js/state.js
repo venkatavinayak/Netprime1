@@ -1,5 +1,24 @@
 /* js/state.js */
 
+// Dynamic Backend API Redirector & CORS Credentials Injector
+(function() {
+  const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : 'https://your-backend-render-url.com'; // CHANGE THIS to your deployed Render backend URL in production
+
+  const originalFetch = window.fetch;
+  window.fetch = function(input, init = {}) {
+    if (typeof input === 'string' && input.startsWith('/api/')) {
+      input = BACKEND_URL + input;
+      init.credentials = 'include';
+    }
+    return originalFetch(input, init);
+  };
+
+  // Expose helper to fetch configured API URL on other modules
+  window.NetPrimeApiUrl = BACKEND_URL;
+})();
+
 // Global namespace to ensure full file:// protocol compatibility without ES Modules
 (function() {
   const STORAGE_KEY_USER = 'netprime_current_user';

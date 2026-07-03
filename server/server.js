@@ -63,8 +63,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Serve the static frontend assets from public/ folder
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve the static frontend assets from client/ folder
+app.use(express.static(path.join(__dirname, '../client')));
 
 // Catch-all route to serve index.html for undefined views
 app.get(/.*/, (req, res, next) => {
@@ -72,7 +72,7 @@ app.get(/.*/, (req, res, next) => {
   if (req.url.startsWith('/api/')) {
     return res.status(404).json({ error: 'Endpoint not found.' });
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, '../client', 'index.html'));
 });
 
 // Global Error Handler

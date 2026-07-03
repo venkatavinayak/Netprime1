@@ -265,6 +265,38 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       window.NetPrimeState.onInitialized(() => {
+        // Handle Stripe payment success redirect verification
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success' && urlParams.get('session_id')) {
+          const sessionId = urlParams.get('session_id');
+          const plan = urlParams.get('plan') || 'TRIAL';
+          
+          window.showToastMessage('Verifying payment session with Stripe...');
+          
+          fetch('/api/payments/stripe/verify-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, plan: plan })
+          })
+          .then(res => res.json())
+          .then(async (data) => {
+            if (data.status === 'SUCCESS') {
+              window.showToastMessage('Payment verified! Welcome to NetPrime Premium.');
+              const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+              window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+              await window.NetPrimeState.refreshUserState();
+              window.location.reload();
+            } else {
+              window.showToastMessage(data.error || 'Payment verification failed.');
+            }
+          })
+          .catch(err => {
+            console.error('Verify session error:', err);
+            window.showToastMessage('Error verifying checkout session.');
+          });
+          return;
+        }
+
         const user = window.NetPrimeState.getCurrentUser();
         
         if (!user || user.username === 'Guest User') {
