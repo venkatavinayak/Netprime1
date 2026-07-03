@@ -34,49 +34,87 @@
 
     <!-- Futuristic Glassmorphic login box -->
     <div class="auth-card-glass glass">
-      <div class="modal-header">
-        <h2 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: #fff;">Sign In</h2>
-        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">Enter credentials to access your streaming catalog</p>
-      </div>
-
-      <form id="standalone-login-form" style="display: flex; flex-direction: column; gap: 20px;">
-        <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label">Email Address</label>
-          <div class="form-input-wrapper">
-            <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required>
-            <i class="fa fa-envelope"></i>
-          </div>
+      <!-- Login Form View Wrapper -->
+      <div id="login-form-container">
+        <div class="modal-header">
+          <h2 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: #fff;">Sign In</h2>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">Access your unlimited entertainment catalog</p>
         </div>
 
-        <div id="password-group" style="display: flex; flex-direction: column; gap: 20px;">
+        <form id="standalone-login-form" style="display: flex; flex-direction: column; gap: 20px;">
           <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label">Password</label>
+            <label class="form-label">Email Address</label>
             <div class="form-input-wrapper">
-              <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
-              <i class="fa fa-lock"></i>
+              <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required>
+              <i class="fa fa-envelope"></i>
             </div>
           </div>
 
-          <div class="form-options" style="display: flex; justify-content: space-between; align-items: center;">
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #ccc; cursor: pointer;">
-              <input type="checkbox" id="login-remember" style="accent-color: var(--accent-magenta);"> Remember Me
-            </label>
-            <span id="standalone-forgot-password" style="font-size: 0.85rem; color: var(--accent-magenta); cursor: pointer;">Forgot Password?</span>
+          <div id="password-group" style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Password</label>
+              <div class="form-input-wrapper">
+                <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+                <i class="fa fa-lock"></i>
+              </div>
+            </div>
+
+            <div class="form-options" style="display: flex; justify-content: space-between; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #ccc; cursor: pointer;">
+                <input type="checkbox" id="login-remember" style="accent-color: var(--accent-magenta);"> Remember Me
+              </label>
+              <span id="standalone-forgot-password" style="font-size: 0.85rem; color: var(--accent-magenta); cursor: pointer;">Forgot Password?</span>
+            </div>
           </div>
+
+          <button type="submit" id="login-submit-btn" class="btn-form-submit" style="margin-top: 10px; height: 48px;">
+            Sign In
+          </button>
+          
+          <button type="button" id="login-send-otp-btn" class="btn-form-submit" style="margin-top: 10px; height: 48px; display: none; background: linear-gradient(135deg, #a0005a 0%, var(--accent-magenta) 100%);">
+            Send OTP
+          </button>
+
+          <span id="toggle-otp-login" style="display: block; text-align: center; margin-top: 5px; font-size: 0.9rem; color: var(--accent-magenta); cursor: pointer; font-weight: bold; transition: color 0.2s;">
+            Sign In using Email OTP
+          </span>
+        </form>
+      </div>
+
+      <!-- OTP Entry View Wrapper (Hidden Initially) -->
+      <div id="login-otp-verify-container" style="display: none;">
+        <div class="modal-header" style="text-align: center; margin-bottom: 20px;">
+          <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: #fff;">Enter Sign-In Code</h2>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">
+            If an account exists, a 6-digit code has been sent to <strong id="login-otp-email-label" style="color: #fff;"></strong>
+          </p>
         </div>
 
-        <button type="submit" id="login-submit-btn" class="btn-form-submit" style="margin-top: 10px; height: 48px;">
-          Sign In
-        </button>
-        
-        <button type="button" id="magic-link-btn" class="btn-form-submit" style="margin-top: 10px; height: 48px; display: none; background: linear-gradient(135deg, #a0005a 0%, var(--accent-magenta) 100%);">
-          Send Magic Login Link
+        <div id="login-otp-boxes" class="otp-boxes-container" style="display: flex; gap: 8px; justify-content: center; margin: 25px 0;">
+          <input type="text" maxlength="1" class="otp-digit-input" style="width: 42px; height: 48px; text-align: center; font-size: 1.4rem; font-weight: bold; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;" />
+          <input type="text" maxlength="1" class="otp-digit-input" style="width: 42px; height: 48px; text-align: center; font-size: 1.4rem; font-weight: bold; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;" />
+          <input type="text" maxlength="1" class="otp-digit-input" style="width: 42px; height: 48px; text-align: center; font-size: 1.4rem; font-weight: bold; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;" />
+          <input type="text" maxlength="1" class="otp-digit-input" style="width: 42px; height: 48px; text-align: center; font-size: 1.4rem; font-weight: bold; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;" />
+          <input type="text" maxlength="1" class="otp-digit-input" style="width: 42px; height: 48px; text-align: center; font-size: 1.4rem; font-weight: bold; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;" />
+          <input type="text" maxlength="1" class="otp-digit-input" style="width: 42px; height: 48px; text-align: center; font-size: 1.4rem; font-weight: bold; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;" />
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px; font-size: 0.85rem; color: #aaa;">
+          Code expires in: <span id="login-otp-timer" style="color: var(--accent-magenta); font-weight: bold;">05:00</span>
+        </div>
+
+        <button type="button" id="login-verify-otp-btn" class="btn-form-submit" style="height: 48px; margin-bottom: 15px;">
+          Verify & Sign In
         </button>
 
-        <span id="toggle-magic-link" style="display: block; text-align: center; margin-top: 5px; font-size: 0.9rem; color: var(--accent-magenta); cursor: pointer; font-weight: bold; transition: color 0.2s;">
-          Sign In with Magic Link (Passwordless)
+        <div style="text-align: center; font-size: 0.85rem; color: #777;">
+          Didn't receive code? <span id="login-resend-otp-btn" style="color: var(--accent-magenta); cursor: pointer; font-weight: bold;">Resend Code</span>
+        </div>
+
+        <span id="back-to-login-btn" style="display: block; text-align: center; margin-top: 15px; font-size: 0.85rem; color: #777; cursor: pointer; font-weight: bold;">
+          Back to Login Options
         </span>
-      </form>
+      </div>
 
       <div class="oauth-divider" style="margin: 20px 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); line-height: 0.1em;"><span style="background: #111; padding: 0 10px; color: #666; font-size: 0.85rem;">or</span></div>
       <button type="button" id="standalone-google-btn" class="btn-form-submit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px;">
@@ -113,39 +151,128 @@
       const loginForm = document.getElementById('standalone-login-form');
       const googleBtn = document.getElementById('standalone-google-btn');
       const forgotLink = document.getElementById('standalone-forgot-password');
-      const toggleMagicLink = document.getElementById('toggle-magic-link');
+      const toggleOtpLink = document.getElementById('toggle-otp-login');
       const passwordGroup = document.getElementById('password-group');
       const passwordInput = document.getElementById('login-password');
       const loginSubmitBtn = document.getElementById('login-submit-btn');
-      const magicLinkBtn = document.getElementById('magic-link-btn');
+      const sendOtpBtn = document.getElementById('login-send-otp-btn');
       
-      let isMagicMode = false;
+      const formContainer = document.getElementById('login-form-container');
+      const otpContainer = document.getElementById('login-otp-verify-container');
+      const verifyOtpBtn = document.getElementById('login-verify-otp-btn');
+      const resendOtpBtn = document.getElementById('login-resend-otp-btn');
+      const backBtn = document.getElementById('back-to-login-btn');
       
-      toggleMagicLink.addEventListener('click', () => {
-        isMagicMode = !isMagicMode;
-        if (isMagicMode) {
+      const otpInputs = document.querySelectorAll('#login-otp-boxes .otp-digit-input');
+      
+      let isOtpMode = false;
+      
+      toggleOtpLink.addEventListener('click', () => {
+        isOtpMode = !isOtpMode;
+        if (isOtpMode) {
           passwordGroup.style.display = 'none';
           passwordInput.required = false;
           loginSubmitBtn.style.display = 'none';
-          magicLinkBtn.style.display = 'block';
-          toggleMagicLink.textContent = 'Sign In with Password';
+          sendOtpBtn.style.display = 'block';
+          toggleOtpLink.textContent = 'Sign In with Password';
         } else {
           passwordGroup.style.display = 'flex';
           passwordInput.required = true;
           loginSubmitBtn.style.display = 'block';
-          magicLinkBtn.style.display = 'none';
-          toggleMagicLink.textContent = 'Sign In with Magic Link (Passwordless)';
+          sendOtpBtn.style.display = 'none';
+          toggleOtpLink.textContent = 'Sign In using Email OTP';
         }
       });
       
-      magicLinkBtn.addEventListener('click', async () => {
+      // Styling borders on focus
+      otpInputs.forEach(input => {
+        input.addEventListener('focus', () => input.style.borderColor = 'var(--accent-magenta)');
+        input.addEventListener('blur', () => input.style.borderColor = 'rgba(255,255,255,0.1)');
+      });
+      
+      // Handle Sign-in OTP verify
+      const handleLoginOtpVerification = async (email, otpCode) => {
+        verifyOtpBtn.disabled = true;
+        verifyOtpBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying...';
+        
+        try {
+          await window.NetPrimeState.verifyLoginOtp(email, otpCode);
+          window.showToastMessage('Login successful!');
+          setTimeout(() => {
+            window.location.href = './index.html';
+          }, 800);
+        } catch (err) {
+          window.showToastMessage(err.message || 'Verification failed.');
+          verifyOtpBtn.disabled = false;
+          verifyOtpBtn.textContent = 'Verify & Sign In';
+        }
+      };
+      
+      // Send OTP button click
+      sendOtpBtn.addEventListener('click', async () => {
         const emailInput = document.getElementById('login-email');
         if (!emailInput.checkValidity()) {
           emailInput.reportValidity();
           return;
         }
+        
         const email = emailInput.value.trim();
-        await window.sendMagicLink(email, magicLinkBtn);
+        sendOtpBtn.disabled = true;
+        sendOtpBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending code...';
+        
+        try {
+          await window.NetPrimeState.sendLoginOtp(email);
+          window.showToastMessage('If an account exists, a 6-digit sign-in code has been sent!');
+          
+          formContainer.style.display = 'none';
+          otpContainer.style.display = 'block';
+          document.getElementById('login-otp-email-label').textContent = email;
+          
+          window.initOtpInputs('login-otp-boxes', async (code) => {
+            await handleLoginOtpVerification(email, code);
+          });
+          
+          window.startOtpTimer('login-otp-timer', 'login-resend-otp-btn', 300);
+          otpInputs[0].focus();
+        } catch (err) {
+          window.showToastMessage(err.message || 'Failed to send OTP.');
+          sendOtpBtn.disabled = false;
+          sendOtpBtn.textContent = 'Send OTP';
+        }
+      });
+      
+      // Resend OTP click handler
+      resendOtpBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value.trim();
+        try {
+          await window.NetPrimeState.sendLoginOtp(email);
+          window.showToastMessage('If an account exists, a new 6-digit code has been sent.');
+          window.startOtpTimer('login-otp-timer', 'login-resend-otp-btn', 300);
+          otpInputs.forEach(i => i.value = '');
+          otpInputs[0].focus();
+        } catch (err) {
+          window.showToastMessage(err.message || 'Failed to send OTP.');
+        }
+      });
+      
+      // Manual verification trigger
+      verifyOtpBtn.addEventListener('click', async () => {
+        const email = document.getElementById('login-email').value.trim();
+        const code = Array.from(otpInputs).map(i => i.value).join('');
+        if (code.length < 6) {
+          window.showToastMessage('Please enter the complete 6-digit verification code.');
+          return;
+        }
+        await handleLoginOtpVerification(email, code);
+      });
+      
+      // Back button click trigger
+      backBtn.addEventListener('click', () => {
+        otpContainer.style.display = 'none';
+        formContainer.style.display = 'block';
+        sendOtpBtn.disabled = false;
+        sendOtpBtn.textContent = 'Send OTP';
       });
 
       // Form submit handler
@@ -155,7 +282,7 @@
         const password = document.getElementById('login-password').value;
         const rememberMe = document.getElementById('login-remember').checked;
         
-        const submitBtn = loginForm.querySelector('.btn-form-submit');
+        const submitBtn = loginForm.querySelector('#login-submit-btn');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Authenticating...';
 

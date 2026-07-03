@@ -616,6 +616,76 @@
       }
     }
 
+    async verifyOtp(email, otp) {
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'OTP Verification failed.');
+        
+        if (data.token) {
+          localStorage.setItem('netprime_token', data.token);
+        }
+        await this.refreshUserState();
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
+
+    async resendSignupOtp(email) {
+      try {
+        const res = await fetch('/api/auth/resend-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to resend OTP.');
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
+
+    async sendLoginOtp(email) {
+      try {
+        const res = await fetch('/api/auth/send-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to send login OTP.');
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
+
+    async verifyLoginOtp(email, otp) {
+      try {
+        const res = await fetch('/api/auth/verify-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'OTP verification failed.');
+        
+        if (data.token) {
+          localStorage.setItem('netprime_token', data.token);
+        }
+        await this.refreshUserState();
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
+
     async loginWithGoogle(idToken) {
       try {
         const res = await fetch('/api/auth/google', {

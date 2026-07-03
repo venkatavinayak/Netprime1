@@ -17,7 +17,12 @@ const UserSchema = new mongoose.Schema({
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
   wishlist: [{ type: String }], // array of movie string IDs, e.g. ['salaar', 'hanuman']
-  watchHistory: [WatchHistorySchema],
+  otpCodeHash: { type: String },
+  otpExpires: { type: Date },
+  otpSentAt: { type: Date },
+  otpAttempts: { type: Number, default: 0 },
+  otpRequestCount: { type: Number, default: 0 },
+  otpRequestResetTime: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

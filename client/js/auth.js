@@ -484,6 +484,105 @@
     }
   };
 
+  // Bind autofocus, backspace shift, and clipboard paste for 6-box OTP entry
+  window.initOtpInputs = function(containerId, onCompleteCallback) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const inputs = container.querySelectorAll('.otp-digit-input');
+    
+    inputs.forEach((input, index) => {
+      // Input event: Autofocus shift forward
+      input.addEventListener('input', (e) => {
+        input.value = input.value.replace(/[^0-9]/g, '');
+        
+        if (input.value.length === 1) {
+          if (index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          } else {
+            // Code completed
+            const code = Array.from(inputs).map(i => i.value).join('');
+            if (code.length === 6 && typeof onCompleteCallback === 'function') {
+              onCompleteCallback(code);
+            }
+          }
+        }
+      });
+      
+      // Keydown event: Autofocus shift backward on Backspace
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace') {
+          if (input.value === '') {
+            if (index > 0) {
+              inputs[index - 1].focus();
+              inputs[index - 1].value = '';
+            }
+          } else {
+            input.value = '';
+          }
+          e.preventDefault();
+        }
+      });
+      
+      // Paste event: Automatically distribute copied code across all boxes
+      input.addEventListener('paste', (e) => {
+        const pastedData = (e.clipboardData || window.clipboardData).getData('text');
+        const digits = pastedData.replace(/[^0-9]/g, '').slice(0, 6);
+        
+        if (digits.length > 0) {
+          for (let i = 0; i < digits.length; i++) {
+            if (inputs[i]) {
+              inputs[i].value = digits[i];
+            }
+          }
+          const activeIndex = Math.min(digits.length, inputs.length - 1);
+          inputs[activeIndex].focus();
+          
+          const code = Array.from(inputs).map(i => i.value).join('');
+          if (code.length === 6 && typeof onCompleteCallback === 'function') {
+            onCompleteCallback(code);
+          }
+        }
+        e.preventDefault();
+      });
+    });
+  };
+
+  // Start countdown timer for Resend OTP link disable state
+  window.startOtpTimer = function(timerElementId, resendLinkElementId, durationSeconds = 300) {
+    const timerElement = document.getElementById(timerElementId);
+    const resendLink = document.getElementById(resendLinkElementId);
+    if (!timerElement) return;
+    
+    if (window.otpInterval) {
+      clearInterval(window.otpInterval);
+    }
+    
+    let timeLeft = durationSeconds;
+    if (resendLink) {
+      resendLink.style.pointerEvents = 'none';
+      resendLink.style.opacity = '0.5';
+    }
+    
+    const updateDisplay = () => {
+      const mins = Math.floor(timeLeft / 60);
+      const secs = timeLeft % 60;
+      timerElement.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      
+      if (timeLeft <= 0) {
+        clearInterval(window.otpInterval);
+        timerElement.textContent = '00:00';
+        if (resendLink) {
+          resendLink.style.pointerEvents = 'auto';
+          resendLink.style.opacity = '1';
+        }
+      }
+      timeLeft--;
+    };
+    
+    updateDisplay();
+    window.otpInterval = setInterval(updateDisplay, 1000);
+  };
+
   // Global methods attached to window
   window.showAuthModal = function(view = 'login') {
     injectAuthModals();

@@ -6,8 +6,11 @@ const { authLimiter } = require('../middleware/securityMiddleware');
 
 // Auth endpoints
 router.post('/register', authLimiter, authController.register);
-router.get('/verify-email', authController.verifyEmail);
+router.post('/verify-otp', authLimiter, authController.verifyOtp);
+router.post('/resend-otp', authLimiter, authController.resendSignupOtp);
 router.post('/login', authLimiter, authController.login);
+router.post('/send-login-otp', authLimiter, authController.sendLoginOtp);
+router.post('/verify-login-otp', authLimiter, authController.verifyLoginOtp);
 router.post('/google', authLimiter, authController.googleLogin);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
