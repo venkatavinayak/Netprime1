@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime - Discover Premium Blockbusters</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Sleek Styles -->
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body>
+
+
+
+  <!-- Floating Navigation Bar -->
+  <nav class="navbar">
+    <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
+      <span>NET<span class="text-magenta">PRIME</span></span>
+    </div>
+    
+    <ul class="navbar-menu">
+      <li class="navbar-item active"><a href="./index.html">Home</a></li>
+      <li class="navbar-item"><a href="./profile.html">My Wishlist</a></li>
+      <li class="navbar-item"><a href="./checkout.html">Subscribe</a></li>
+      <li class="navbar-item"><a href="./contact.html">Support</a></li>
+    </ul>
+
+    <div class="navbar-actions">
+      <!-- Elegant Expandable Search -->
+      <div class="search-bar-container">
+        <input type="text" id="search-box" class="search-input" placeholder="Search movies, languages...">
+        <i class="fa fa-search search-icon-btn"></i>
+        
+        <!-- Autocomplete Dropdown -->
+        <div id="result-box" class="search-results-dropdown"></div>
+      </div>
+
+      <!-- Theme Switcher Button -->
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <i id="theme-toggle-icon" class="fa fa-moon"></i>
+      </button>
+
+      <!-- User Auth Buttons or Profile Avatar Trigger -->
+      <div id="navbar-actions-dynamic" style="display: flex; gap: 15px;">
+        <!-- Filled in by main.js in real time -->
+      </div>
+
+      <!-- Profile Avatar and Dropdown Menu -->
+      <div id="profile-nav-container" class="profile-nav-container" style="display: none;">
+        <button id="nav-avatar-btn" class="profile-avatar-btn">
+          <img id="nav-avatar-img" src="./assets/prof.png" alt="User Avatar">
+        </button>
+        
+        <!-- Glassmorphic Dropdown -->
+        <div id="profile-dropdown" class="profile-dropdown">
+          <div id="dropdown-user-block" class="profile-dropdown-user">
+            <!-- Dynamic user details -->
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-user-circle"></i> My Account
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-heart"></i> My Wishlist
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./checkout.html'">
+            <i class="fa fa-ticket"></i> Premium Subscription
+          </div>
+          <div class="profile-dropdown-item" onclick="handleLogout()">
+            <i class="fa fa-sign-out-alt"></i> Sign Out
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Large Ambient Multi-Video Billboard Slideshow -->
+  <section class="hero-slideshow">
+    
+    <!-- SLIDE 1: HANU-MAN -->
+    <div class="hero-slide active" data-id="hanuman">
+      <video class="hero-slide-video" autoplay muted loop playsinline>
+        <source src="./assets/hanu.mp4" type="video/mp4">
+        <source src="https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" type="video/mp4">
+      </video>
+      <div class="hero-slide-overlay"></div>
+      <div class="hero-slide-content">
+        <div class="hero-meta">
+          <span class="badge badge-free">Free Movie</span>
+          <span class="hero-rating"><i class="fa fa-star"></i> 9.3 IMDb</span>
+          <span>2024</span>
+          <span>2h 38m</span>
+        </div>
+        <h1 class="hero-slide-title">HANU-MAN</h1>
+        <p class="hero-slide-desc">
+          When an ordinary young man in the village of Anjanadri accidentally discovers an ancient relic, he is bestowed with the massive, invincible powers of Lord Hanuman. Now, he must rise up to protect his people from a high-tech corporate supervillain.
+        </p>
+        <div class="hero-ctas">
+          <button class="btn-premium" onclick="window.location.href='./movie.html?id=hanuman'">
+            <i class="fa fa-play"></i> Watch Details
+          </button>
+          <button class="btn-secondary" onclick="toggleHeroWishlist('hanuman', this)">
+            <i class="fa fa-plus"></i> Add to Wishlist
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: VIKRAM -->
+    <div class="hero-slide" data-id="vikram">
+      <video class="hero-slide-video" muted loop playsinline>
+        <source src="./assets/vikramtri.mp4" type="video/mp4">
+        <source src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+      </video>
+      <div class="hero-slide-overlay"></div>
+      <div class="hero-slide-content">
+        <div class="hero-meta">
+          <span class="badge badge-free">Free Movie</span>
+          <span class="hero-rating"><i class="fa fa-star"></i> 9.1 IMDb</span>
+          <span>2022</span>
+          <span>2h 53m</span>
+        </div>
+        <h1 class="hero-slide-title">VIKRAM</h1>
+        <p class="hero-slide-desc">
+          A special ops team hunts a mysterious masked vigilante group killing drug cartel kingpins, leading to the return of an old agent who has spent decades in hiding.
+        </p>
+        <div class="hero-ctas">
+          <button class="btn-premium" onclick="window.location.href='./movie.html?id=vikram'">
+            <i class="fa fa-play"></i> Watch Details
+          </button>
+          <button class="btn-secondary" onclick="toggleHeroWishlist('vikram', this)">
+            <i class="fa fa-plus"></i> Add to Wishlist
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: JALSA -->
+    <div class="hero-slide" data-id="jalsa">
+      <video class="hero-slide-video" muted loop playsinline>
+        <source src="./assets/jalsa.mp4" type="video/mp4">
+        <source src="https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" type="video/mp4">
+      </video>
+      <div class="hero-slide-overlay"></div>
+      <div class="hero-slide-content">
+        <div class="hero-meta">
+          <span class="badge badge-free">Free Movie</span>
+          <span class="hero-rating"><i class="fa fa-star"></i> 8.8 IMDb</span>
+          <span>2008</span>
+          <span>2h 45m</span>
+        </div>
+        <h1 class="hero-slide-title">JALSA</h1>
+        <p class="hero-slide-desc">
+          Sanjay Sahu joins a rebel group due to childhood trauma. When he returns to normal society, he finds himself caught between his dual romances and a powerful local landlord.
+        </p>
+        <div class="hero-ctas">
+          <button class="btn-premium" onclick="window.location.href='./movie.html?id=jalsa'">
+            <i class="fa fa-play"></i> Watch Details
+          </button>
+          <button class="btn-secondary" onclick="toggleHeroWishlist('jalsa', this)">
+            <i class="fa fa-plus"></i> Add to Wishlist
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slideshow Control Prev/Next buttons -->
+    <div class="hero-slider-arrows">
+      <button class="hero-slider-arrow" id="hero-prev-btn"><i class="fa fa-chevron-left"></i></button>
+      <button class="hero-slider-arrow" id="hero-next-btn"><i class="fa fa-chevron-right"></i></button>
+    </div>
+
+  </section>
+
+  <!-- Dynamic Catalog Rows -->
+  <main class="carousel-section">
+    
+    <!-- ROW 1: TRENDING NOW -->
+    <div class="carousel-row">
+      <div class="carousel-header">
+        <h2 class="carousel-title">Trending Blockbusters</h2>
+        <div class="carousel-nav-arrows">
+          <button class="carousel-arrow left"><i class="fa fa-chevron-left"></i></button>
+          <button class="carousel-arrow right"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="carousel-container">
+        <div id="track-trending" class="carousel-track">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: TOP IN TELUGU -->
+    <div class="carousel-row">
+      <div class="carousel-header">
+        <h2 class="carousel-title">Top In Telugu</h2>
+        <div class="carousel-nav-arrows">
+          <button class="carousel-arrow left"><i class="fa fa-chevron-left"></i></button>
+          <button class="carousel-arrow right"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="carousel-container">
+        <div id="track-telugu" class="carousel-track">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: TOP IN TAMIL -->
+    <div class="carousel-row">
+      <div class="carousel-header">
+        <h2 class="carousel-title">Top In Tamil</h2>
+        <div class="carousel-nav-arrows">
+          <button class="carousel-arrow left"><i class="fa fa-chevron-left"></i></button>
+          <button class="carousel-arrow right"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="carousel-container">
+        <div id="track-tamil" class="carousel-track">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 4: TOP IN KANNADA -->
+    <div class="carousel-row">
+      <div class="carousel-header">
+        <h2 class="carousel-title">Top In Kannada</h2>
+        <div class="carousel-nav-arrows">
+          <button class="carousel-arrow left"><i class="fa fa-chevron-left"></i></button>
+          <button class="carousel-arrow right"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="carousel-container">
+        <div id="track-kannada" class="carousel-track">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 5: TOP IN MALAYALAM -->
+    <div class="carousel-row">
+      <div class="carousel-header">
+        <h2 class="carousel-title">Top In Malayalam</h2>
+        <div class="carousel-nav-arrows">
+          <button class="carousel-arrow left"><i class="fa fa-chevron-left"></i></button>
+          <button class="carousel-arrow right"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="carousel-container">
+        <div id="track-malayalam" class="carousel-track">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Elegant Sleek Footer -->
+  <footer style="background: #000; border-top: 1px solid rgba(255,255,255,0.05); padding: 50px 0 30px 0; font-family: var(--font-body); font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-top: 50px;">
+    <div class="container" style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
+      <div class="navbar-brand" style="margin-bottom: 10px;">
+        <span>NET<span class="text-magenta">PRIME</span></span>
+      </div>
+      <div>
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'});" class="btn-secondary" style="height: 38px; padding: 0 20px; font-size: 0.85rem; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fa fa-arrow-up"></i> Back to Top
+        </button>
+      </div>
+
+
+    </div>
+  </footer>
+
+  <!-- Scripts - load in synchronous dependency order for perfect file:// compatibility -->
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/main.js"></script>
+
+  <script>
+    // Initialize Page Content
+    document.addEventListener('DOMContentLoaded', () => {
+      // Render Carousels
+      renderMovieGrid('track-trending', 'trending');
+      renderMovieGrid('track-telugu', 'telugu');
+      renderMovieGrid('track-tamil', 'tamil');
+      renderMovieGrid('track-kannada', 'kannada');
+      renderMovieGrid('track-malayalam', 'malayalam');
+
+      // Initialize navigation scrolling arrows
+      initCarouselsArrows();
+      
+      // Setup hero slideshow loops
+      initHeroSlideshow();
+    });
+
+    // Slideshow control logic
+    let currentSlideIndex = 0;
+    const slides = document.querySelectorAll('.hero-slide');
+    let slideshowTimer;
+
+    function initHeroSlideshow() {
+      if (slides.length === 0) return;
+
+      document.getElementById('hero-next-btn').addEventListener('click', () => {
+        changeSlide(currentSlideIndex + 1);
+        resetSlideshowTimer();
+      });
+
+      document.getElementById('hero-prev-btn').addEventListener('click', () => {
+        changeSlide(currentSlideIndex - 1);
+        resetSlideshowTimer();
+      });
+
+      // Play first video on load with direct file:// protocol autoplay bypass logic
+      const firstVideo = slides[0].querySelector('video');
+      if (firstVideo) {
+        firstVideo.play().catch(err => {
+          console.log('Autoplay blocked initially, setting up user interaction recovery: ', err);
+          const recoverPlay = () => {
+            firstVideo.play().catch(() => {});
+            document.removeEventListener('click', recoverPlay);
+            document.removeEventListener('touchstart', recoverPlay);
+            document.removeEventListener('mousemove', recoverPlay);
+          };
+          document.addEventListener('click', recoverPlay);
+          document.addEventListener('touchstart', recoverPlay);
+          document.addEventListener('mousemove', recoverPlay);
+        });
+      }
+
+      startSlideshowTimer();
+      updateHeroWishlistState();
+    }
+
+    function changeSlide(index) {
+      // Pause active video
+      const currentVideo = slides[currentSlideIndex].querySelector('video');
+      if (currentVideo) currentVideo.pause();
+
+      slides[currentSlideIndex].classList.remove('active');
+
+      currentSlideIndex = (index + slides.length) % slides.length;
+      slides[currentSlideIndex].classList.add('active');
+
+      // Play new video
+      const newVideo = slides[currentSlideIndex].querySelector('video');
+      if (newVideo) {
+        newVideo.currentTime = 0;
+        newVideo.play().catch(err => console.log('Slide video autoplay blocked: ', err));
+      }
+
+      updateHeroWishlistState();
+    }
+
+    function startSlideshowTimer() {
+      slideshowTimer = setInterval(() => {
+        changeSlide(currentSlideIndex + 1);
+      }, 4000); // swap slides every 4 seconds
+    }
+
+    function resetSlideshowTimer() {
+      clearInterval(slideshowTimer);
+      startSlideshowTimer();
+    }
+
+    // Handle Hero add/remove wishlist
+    function toggleHeroWishlist(movieId, btn) {
+      const user = window.NetPrimeState.getCurrentUser();
+      if (!user || user.username === 'Guest User') {
+        window.location.href = './login.html';
+        return;
+      }
+      
+      if (window.NetPrimeState.isInWishlist(movieId)) {
+        window.NetPrimeState.removeFromWishlist(movieId);
+        btn.innerHTML = '<i class="fa fa-plus"></i> Add to Wishlist';
+        showToastMessage('Removed from wishlist');
+      } else {
+        window.NetPrimeState.addToWishlist(movieId);
+        btn.innerHTML = '<i class="fa fa-check"></i> Wishlisted';
+        showToastMessage('Added to wishlist');
+      }
+    }
+
+    function updateHeroWishlistState() {
+      slides.forEach(slide => {
+        const id = slide.getAttribute('data-id');
+        const btn = slide.querySelector('.btn-secondary');
+        if (!btn) return;
+
+        if (window.NetPrimeState.isInWishlist(id)) {
+          btn.innerHTML = '<i class="fa fa-check"></i> Wishlisted';
+          btn.className = 'btn-premium'; // glowing premium highlights when wishlisted!
+        } else {
+          btn.innerHTML = '<i class="fa fa-plus"></i> Add to Wishlist';
+          btn.className = 'btn-secondary';
+        }
+      });
+    }
+
+    // Update hero button state on user login/wishlist changes
+    window.addEventListener('netprime_wishlistChange', updateHeroWishlistState);
+
+
+  </script>
+</body>
+</html>

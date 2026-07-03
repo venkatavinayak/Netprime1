@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime - Movie Profile</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Sleek Styles -->
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body style="background-color: var(--bg-primary);">
+
+
+
+  <!-- Floating Navigation Bar -->
+  <nav class="navbar scrolled">
+    <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
+      <span>NET<span class="text-magenta">PRIME</span></span>
+    </div>
+    
+    <ul class="navbar-menu">
+      <li class="navbar-item"><a href="./index.html">Home</a></li>
+      <li class="navbar-item"><a href="./profile.html">My Wishlist</a></li>
+      <li class="navbar-item"><a href="./checkout.html">Subscribe</a></li>
+      <li class="navbar-item"><a href="./contact.html">Support</a></li>
+    </ul>
+
+    <div class="navbar-actions">
+      <!-- Search bar -->
+      <div class="search-bar-container">
+        <input type="text" id="search-box" class="search-input" placeholder="Search movies, languages...">
+        <i class="fa fa-search search-icon-btn"></i>
+        <div id="result-box" class="search-results-dropdown"></div>
+      </div>
+
+      <!-- Theme Switcher Button -->
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <i id="theme-toggle-icon" class="fa fa-moon"></i>
+      </button>
+
+      <!-- User Auth Buttons or Profile Avatar Trigger -->
+      <div id="navbar-actions-dynamic" style="display: flex; gap: 15px;">
+        <!-- Handled by main.js -->
+      </div>
+
+      <!-- Profile Avatar and Dropdown Menu -->
+      <div id="profile-nav-container" class="profile-nav-container" style="display: none;">
+        <button id="nav-avatar-btn" class="profile-avatar-btn">
+          <img id="nav-avatar-img" src="./assets/prof.png" alt="User Avatar">
+        </button>
+        
+        <div id="profile-dropdown" class="profile-dropdown">
+          <div id="dropdown-user-block" class="profile-dropdown-user">
+            <!-- Dynamic User info -->
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-user-circle"></i> My Account
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-heart"></i> My Wishlist
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./checkout.html'">
+            <i class="fa fa-ticket"></i> Premium Subscription
+          </div>
+          <div class="profile-dropdown-item" onclick="handleLogout()">
+            <i class="fa fa-sign-out-alt"></i> Sign Out
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Big Ambient Backdrop Banner (Populated via JS) -->
+  <header id="movie-banner" class="movie-details-backdrop">
+    <div class="movie-details-backdrop-overlay"></div>
+  </header>
+
+  <!-- Movie Description Layout -->
+  <main class="movie-details-container container">
+    
+    <div class="movie-main-info-grid">
+      
+      <!-- LEFT: Glowing Poster Cover -->
+      <div class="movie-details-poster-card glass">
+        <img id="movie-details-poster" src="./assets/prime.png" alt="Movie Poster">
+      </div>
+
+      <!-- RIGHT: Details Block -->
+      <div class="movie-meta-block">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <span id="movie-details-badge" class="badge">Badge</span>
+          <span id="movie-details-rating" class="text-gold" style="font-weight: bold; font-size: 0.95rem;">
+            <i class="fa fa-star"></i> 9.0 ⭐
+          </span>
+          <span id="movie-details-year" style="color: var(--text-secondary); font-size: 0.95rem;">2024</span>
+          <span id="movie-details-duration" style="color: var(--text-secondary); font-size: 0.95rem;">2h 30m</span>
+          <span id="movie-details-lang" class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #fff;">Telugu</span>
+        </div>
+
+        <h1 id="movie-details-title" class="movie-meta-title">Movie Title</h1>
+        
+        <p id="movie-details-synopsis" class="movie-details-synopsis">
+          Loading detailed movie profile synopsis description context...
+        </p>
+
+        <!-- Cast -->
+        <div class="movie-cast-info">
+          <h4>Leading Cast</h4>
+          <p id="movie-details-cast">Actor 1, Actor 2, Actor 3</p>
+        </div>
+
+        <!-- Action CTAs -->
+        <div style="display: flex; gap: 15px; margin-top: 15px; align-items: center; flex-wrap: wrap;">
+          <button id="movie-play-cta-btn" class="btn-premium" style="height: 48px; padding: 0 35px; font-size: 1rem;">
+            <i class="fa fa-play"></i> Watch Movie
+          </button>
+          
+          <button id="movie-trailer-cta-btn" class="btn-secondary" style="height: 48px; padding: 0 30px; font-size: 1rem; border-color: var(--accent-magenta); color: #fff;">
+            <i class="fa fa-video"></i> Watch Trailer
+          </button>
+          
+          <button id="movie-wishlist-cta-btn" class="btn-secondary" style="height: 48px; padding: 0 25px; font-size: 0.95rem;">
+            <i class="fa fa-plus"></i> Add to Wishlist
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Recommendations Track Row -->
+    <div class="carousel-row" style="margin-top: 60px;">
+      <div class="carousel-header">
+        <h2 class="carousel-title">Recommended Blockbusters</h2>
+        <div class="carousel-nav-arrows">
+          <button class="carousel-arrow left"><i class="fa fa-chevron-left"></i></button>
+          <button class="carousel-arrow right"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="carousel-container">
+        <div id="movie-rec-track" class="carousel-track">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- YouTube HD Trailer Modal Overlay -->
+  <div id="youtube-trailer-modal" class="modal-overlay">
+    <div class="youtube-modal-container">
+      <button id="youtube-modal-close" class="youtube-close-btn">✕</button>
+      <div class="youtube-iframe-wrapper">
+        <iframe id="youtube-trailer-iframe" width="100%" height="100%" src="" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- "Movie Not Fully Uploaded" Alert warning modal -->
+  <div id="not-uploaded-modal" class="modal-overlay">
+    <div class="not-uploaded-modal-content">
+      <button id="not-uploaded-modal-close" class="modal-close-btn">✕</button>
+      <i class="fa-solid fa-circle-play warning-icon-glow"></i>
+      <h2 style="font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Transcoding in Progress</h2>
+      <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.55; margin-bottom: 25px;">
+        This feature film has not been fully uploaded to our cloud server yet. Secure transcoding is in progress. You can enjoy the official high-definition trailer in the meantime!
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button id="modal-watch-trailer-btn" class="btn-premium" style="width: 100%; height: 48px; font-size: 1.05rem;">
+          <i class="fa fa-video"></i> Watch Trailer Instead
+        </button>
+        <button id="modal-close-alert-btn" class="btn-secondary" style="width: 100%; height: 48px; font-size: 1rem;">
+          Close Notice
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- State Managers & Scripts - load in synchronous dependency order -->
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/main.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Extract ID
+      const params = new URLSearchParams(window.location.search);
+      const movieId = params.get('id') || 'salaar';
+
+      const movie = window.NetPrimeState.getMovieById(movieId);
+      if (!movie) {
+        alert('Movie not found!');
+        window.location.href = './index.html';
+        return;
+      }
+
+      // Populate Elements
+      document.title = `NetPrime - ${movie.title}`;
+      document.getElementById('movie-details-title').textContent = movie.title;
+      document.getElementById('movie-details-synopsis').textContent = movie.desc;
+      document.getElementById('movie-details-cast').textContent = movie.cast;
+      document.getElementById('movie-details-rating').innerHTML = `<i class="fa fa-star"></i> ${movie.rating} IMDb`;
+      document.getElementById('movie-details-year').textContent = movie.year;
+      document.getElementById('movie-details-duration').textContent = movie.duration;
+      document.getElementById('movie-details-lang').textContent = movie.language;
+
+      const poster = document.getElementById('movie-details-poster');
+      poster.src = movie.poster;
+      poster.onerror = () => poster.src = './assets/prime.png';
+
+      // Big ambient banner
+      const banner = document.getElementById('movie-banner');
+      banner.style.backgroundImage = `url('${movie.poster}')`; // fallback uses poster as large blurred background
+
+      // Dynamic ambient backdrop video player inside details banner
+      if (movie.video) {
+        const bgVideo = document.createElement('video');
+        bgVideo.className = 'movie-backdrop-video';
+        bgVideo.autoplay = true;
+        bgVideo.muted = true;
+        bgVideo.loop = true;
+        bgVideo.playsInline = true;
+        
+        // CRITICAL UPGRADE: Hide the background stretched poster once the video starts playing
+        // This removes the distorted vertical "ghost image" completely!
+        bgVideo.addEventListener('playing', () => {
+          banner.style.backgroundImage = 'none';
+          banner.style.backgroundColor = 'var(--bg-primary)';
+        });
+        
+        const source = document.createElement('source');
+        source.src = movie.video;
+        source.type = 'video/mp4';
+        bgVideo.appendChild(source);
+        
+        // Prepend inside banner BEFORE the overlay gradient
+        banner.insertBefore(bgVideo, banner.firstChild);
+
+        // Active recovery trigger for file:// autoplay block
+        bgVideo.play().catch(err => {
+          console.log('Detail page background video blocked: ', err);
+          const recoverDetailPlay = () => {
+            bgVideo.play().catch(() => {});
+            document.removeEventListener('click', recoverDetailPlay);
+            document.removeEventListener('touchstart', recoverDetailPlay);
+            document.removeEventListener('mousemove', recoverDetailPlay);
+          };
+          document.addEventListener('click', recoverDetailPlay);
+          document.addEventListener('touchstart', recoverDetailPlay);
+          document.addEventListener('mousemove', recoverDetailPlay);
+        });
+      }
+
+      // Tiers Badge
+      const badge = document.getElementById('movie-details-badge');
+      badge.className = `badge ${movie.isFree ? 'badge-free' : 'badge-premium'}`;
+      badge.innerHTML = movie.isFree ? 'Free Access' : '<i class="fa fa-lock"></i> Premium Locked';
+
+      // YouTube Trailer Modal Trigger and Handler
+      const youtubeModal = document.getElementById('youtube-trailer-modal');
+      const youtubeIframe = document.getElementById('youtube-trailer-iframe');
+      const youtubeClose = document.getElementById('youtube-modal-close');
+      const watchTrailerBtn = document.getElementById('movie-trailer-cta-btn');
+
+      function openTrailer() {
+        if (movie.youtube) {
+          const watchUrl = movie.youtube.replace('/embed/', '/watch?v=');
+          window.open(watchUrl, '_blank');
+        } else {
+          alert('Official trailer link not found!');
+        }
+      }
+
+      function closeTrailer() {
+        youtubeIframe.src = ''; // Stop video playback instantly
+        youtubeModal.classList.remove('active');
+      }
+
+      watchTrailerBtn.addEventListener('click', openTrailer);
+      youtubeClose.addEventListener('click', closeTrailer);
+      youtubeModal.addEventListener('click', (e) => {
+        if (e.target === youtubeModal) closeTrailer();
+      });
+
+      // Warning Not Uploaded Modal Bindings
+      const notUploadedModal = document.getElementById('not-uploaded-modal');
+      const notUploadedClose = document.getElementById('not-uploaded-modal-close');
+      const modalWatchTrailerBtn = document.getElementById('modal-watch-trailer-btn');
+      const modalCloseAlertBtn = document.getElementById('modal-close-alert-btn');
+      const playBtn = document.getElementById('movie-play-cta-btn');
+
+      function openWarningModal() {
+        const isPrem = window.NetPrimeState.isPremium();
+        if (!movie.isFree && !isPrem) {
+          // Gate premium content - trigger original subscription upgrade modal popup
+          handleMovieClick(movie.id);
+        } else {
+          notUploadedModal.classList.add('active');
+        }
+      }
+
+      function closeWarningModal() {
+        notUploadedModal.classList.remove('active');
+      }
+
+      playBtn.addEventListener('click', openWarningModal);
+      notUploadedClose.addEventListener('click', closeWarningModal);
+      modalCloseAlertBtn.addEventListener('click', closeWarningModal);
+      notUploadedModal.addEventListener('click', (e) => {
+        if (e.target === notUploadedModal) closeWarningModal();
+      });
+
+      modalWatchTrailerBtn.addEventListener('click', () => {
+        closeWarningModal();
+        openTrailer();
+      });
+
+      // Wishlist button initial state and action
+      const wishlistBtn = document.getElementById('movie-wishlist-cta-btn');
+      
+      function updateWishlistBtn() {
+        const isWishlisted = window.NetPrimeState.isInWishlist(movie.id);
+        if (isWishlisted) {
+          wishlistBtn.className = 'btn-premium'; // active highlights
+          wishlistBtn.innerHTML = '<i class="fa fa-check"></i> Wishlisted';
+        } else {
+          wishlistBtn.className = 'btn-secondary';
+          wishlistBtn.innerHTML = '<i class="fa fa-plus"></i> Add to Wishlist';
+        }
+      }
+
+      updateWishlistBtn();
+
+      wishlistBtn.addEventListener('click', () => {
+        const user = window.NetPrimeState.getCurrentUser();
+        if (!user || user.username === 'Guest User') {
+          showAuthModal('login');
+          return;
+        }
+
+        if (window.NetPrimeState.isInWishlist(movie.id)) {
+          window.NetPrimeState.removeFromWishlist(movie.id);
+          showToastMessage('Removed from wishlist');
+        } else {
+          window.NetPrimeState.addToWishlist(movie.id);
+          showToastMessage('Added to wishlist');
+        }
+        updateWishlistBtn();
+      });
+
+      // Synchronize with external changes (dropdowns, etc.)
+      window.addEventListener('netprime_wishlistChange', updateWishlistBtn);
+
+      // Render Recommendations (movies of the same language or category!)
+      renderMovieGrid('movie-rec-track', movie.category);
+      initCarouselsArrows();
+
+    });
+  </script>
+</body>
+</html>

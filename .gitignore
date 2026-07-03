@@ -1,0 +1,26 @@
+# NetPrime GitIgnore
+
+# Large Video Assets
+*.mp4
+*.mkv
+*.avi
+*.mov
+
+# Sensitive/Personal Payment Details
+assets/payment_qr.png
+
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Editor / IDE configuration
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

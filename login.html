@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime - Sign In</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Sleek Styles -->
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body style="background-color: #000; overflow-x: hidden;">
+
+  <div class="auth-page-container">
+    <div class="auth-page-backdrop"></div>
+    
+    <a href="./index.html" class="navbar-brand" style="position: absolute; top: 30px; left: 5%; z-index: 10;">
+      <span>NET<span class="text-magenta">PRIME</span></span>
+    </a>
+
+    <div style="position: absolute; top: 30px; right: 5%; z-index: 10; display: flex; gap: 15px; align-items: center;">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <i id="theme-toggle-icon" class="fa fa-moon"></i>
+      </button>
+    </div>
+
+    <!-- Futuristic Glassmorphic login box -->
+    <div class="auth-card-glass glass">
+      <div class="modal-header">
+        <h2 style="font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: #fff;">Sign In</h2>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">Enter credentials to access your streaming catalog</p>
+      </div>
+
+      <form id="standalone-login-form" style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Email Address</label>
+          <div class="form-input-wrapper">
+            <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required>
+            <i class="fa fa-envelope"></i>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Password</label>
+          <div class="form-input-wrapper">
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+            <i class="fa fa-lock"></i>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-form-submit" style="margin-top: 10px; height: 48px;">
+          Sign In
+        </button>
+      </form>
+
+      <p class="form-toggle-link" style="margin-top: 25px;">
+        New to NetPrime? <a href="./signup.html" style="color: var(--accent-magenta); font-weight: 700;">Sign up now</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- State Managers & Scripts - load in synchronous dependency order -->
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const loginForm = document.getElementById('standalone-login-form');
+
+
+      // Form submit handler
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value.trim();
+        const name = email.split('@')[0];
+        const randomAvatar = `avatar${Math.floor(Math.random() * 5) + 1}.png`;
+
+        window.NetPrimeState.login(name, email, randomAvatar);
+        
+        // Show secure loader transition
+        const submitBtn = loginForm.querySelector('.btn-form-submit');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Authenticating...';
+
+        setTimeout(() => {
+          window.location.href = './index.html';
+        }, 1200);
+      });
+
+
+    });
+  </script>
+
+</body>
+</html>

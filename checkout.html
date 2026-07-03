@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime Premium - Immersive 3D Billing Gateway</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Sleek Styles -->
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body style="background-color: var(--bg-primary);">
+
+  <!-- Floating Navigation Bar -->
+  <nav class="navbar scrolled">
+    <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
+      <span>NET<span class="text-magenta">PRIME</span></span>
+    </div>
+    
+    <ul class="navbar-menu">
+      <li class="navbar-item"><a href="./index.html">Home</a></li>
+      <li class="navbar-item"><a href="./profile.html">My Wishlist</a></li>
+      <li class="navbar-item active"><a href="./checkout.html">Subscribe</a></li>
+      <li class="navbar-item"><a href="./contact.html">Support</a></li>
+    </ul>
+
+    <div class="navbar-actions">
+      <!-- Theme Switcher Button -->
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <i id="theme-toggle-icon" class="fa fa-moon"></i>
+      </button>
+
+      <!-- User Auth Buttons or Profile Avatar Trigger -->
+      <div id="navbar-actions-dynamic" style="display: flex; gap: 15px;">
+        <!-- Handled by main.js -->
+      </div>
+
+      <!-- Profile Avatar and Dropdown Menu -->
+      <div id="profile-nav-container" class="profile-nav-container" style="display: none;">
+        <button id="nav-avatar-btn" class="profile-avatar-btn">
+          <img id="nav-avatar-img" src="./assets/prof.png" alt="User Avatar">
+        </button>
+        
+        <div id="profile-dropdown" class="profile-dropdown">
+          <div id="dropdown-user-block" class="profile-dropdown-user">
+            <!-- Dynamic User info -->
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-user-circle"></i> My Account
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-heart"></i> My Wishlist
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./checkout.html'">
+            <i class="fa fa-ticket"></i> Premium Subscription
+          </div>
+          <div class="profile-dropdown-item" onclick="handleLogout()">
+            <i class="fa fa-sign-out-alt"></i> Sign Out
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Checkout Layout -->
+  <main class="checkout-page container">
+    
+    <!-- BILLING FORM & PAYMENT CARD OVERVIEW -->
+    <div id="billing-section" class="checkout-grid">
+      
+      <!-- LEFT: Pricing Tier Details in INR -->
+      <div class="checkout-summary-card glass">
+        <h2 style="font-family: var(--font-display); font-size: 1.85rem; font-weight: 800; color: #fff; margin-bottom: 8px;">Upgrade to Premium</h2>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 25px;">Unleash the full potential of NetPrime with unlimited cinematic access.</p>
+        
+        <!-- Pricing selection cards -->
+        <div class="pricing-grid">
+          <div class="pricing-card selected" data-plan="TRIAL" data-price="1">
+            <span class="badge badge-premium" style="position: absolute; top: -10px; right: 10px; font-size: 0.6rem;">Special Promo</span>
+            <div class="pricing-card-title">Free Trial</div>
+            <div class="pricing-card-price">₹1<span>/ 30 days</span></div>
+            <div class="pricing-card-desc">Try Premium for 30 days. Perfect to experience 4K cinema quality.</div>
+          </div>
+          
+          <div class="pricing-card" data-plan="MONTHLY" data-price="199">
+            <div class="pricing-card-title">Premium Monthly</div>
+            <div class="pricing-card-price">₹199<span>/ month</span></div>
+            <div class="pricing-card-desc">Standard Monthly renewal. Stream 30+ movies on all devices.</div>
+          </div>
+          
+          <div class="pricing-card" data-plan="YEARLY" data-price="1499">
+            <span class="badge badge-free" style="position: absolute; top: -10px; right: 10px; font-size: 0.6rem; background: rgba(0,255,102,0.15); color: var(--accent-green); border-color: var(--accent-green);">Save 37%</span>
+            <div class="pricing-card-title">Premium Annual</div>
+            <div class="pricing-card-price">₹1499<span>/ year</span></div>
+            <div class="pricing-card-desc">Super annual savings. Stream ad-free in Dolby Atmos spatial audio.</div>
+          </div>
+        </div>
+
+        <h3>Plan Features</h3>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 20px;">
+          <div style="display: flex; gap: 12px; align-items: center; font-size: 0.9rem;">
+            <span style="color: var(--accent-magenta); font-weight: 800;">✓</span> <span><strong>Unlimited Streaming</strong> on all 30+ regional movies & trailers</span>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; font-size: 0.9rem;">
+            <span style="color: var(--accent-magenta); font-weight: 800;">✓</span> <span><strong>4K Ultra HD & HDR</strong> high-definition video rendering</span>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; font-size: 0.9rem;">
+            <span style="color: var(--accent-magenta); font-weight: 800;">✓</span> <span><strong>Simultaneous screens</strong> (up to 4 devices offline/online)</span>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; font-size: 0.9rem;">
+            <span style="color: var(--accent-magenta); font-weight: 800;">✓</span> <span><strong>Dolby Atmos 3D audio</strong> dynamic speaker spatial effects</span>
+          </div>
+        </div>
+
+        <div class="summary-row total" style="margin-top: 20px;">
+          <span>Total Billed Now:</span>
+          <span id="summary-total-price" style="font-size: 1.6rem;">₹1</span>
+        </div>
+      </div>
+
+      <!-- RIGHT: Interactive Payment tabs (Flipping Card vs UPI QR) -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Glowing tab bar -->
+        <div class="payment-tabs">
+          <button id="tab-card-btn" class="payment-tab-btn active">
+            <i class="fa fa-credit-card"></i> Credit Card
+          </button>
+          <button id="tab-upi-btn" class="payment-tab-btn">
+            <i class="fa fa-mobile-alt"></i> UPI QR Scan
+          </button>
+        </div>
+
+        <!-- TAB CONTENT 1: CREDIT CARD -->
+        <div id="payment-card-panel" style="display: flex; flex-direction: column; gap: 25px;">
+          <!-- 3D Flipping Plastic Card Showcase -->
+          <div class="credit-card-section">
+            <div class="credit-card-container">
+              <div class="credit-card">
+                
+                <!-- CARD FRONT -->
+                <div class="card-front">
+                  <div style="display: flex; justify-content: space-between; width: 100%;">
+                    <div class="card-chip"></div>
+                    <div id="card-brand-logo" class="card-brand-logo">NETPRIME</div>
+                  </div>
+                  <div id="card-number-display" class="card-number-display">•••• •••• •••• ••••</div>
+                  <div class="card-meta-row">
+                    <div class="card-holder-display">
+                      <h5>Cardholder Name</h5>
+                      <p id="card-holder-display">CARDHOLDER NAME</p>
+                    </div>
+                    <div class="card-expiry-display">
+                      <h5>Expires</h5>
+                      <p id="card-expiry-display">MM/YY</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CARD BACK -->
+                <div class="card-back">
+                  <div class="card-black-strip"></div>
+                  <div class="card-signature-strip">
+                    <div id="card-cvv-display" class="card-cvv-display">•••</div>
+                  </div>
+                  <div class="card-logo-back">NETPRIME</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Card inputs form -->
+          <form id="checkout-form" class="glass" style="padding: 30px; border-radius: 16px; border: 1px solid var(--glass-border);">
+            <div class="form-group">
+              <label class="form-label">Cardholder Name</label>
+              <div class="form-input-wrapper">
+                <input type="text" id="card-holder" class="form-input" placeholder="e.g. VENKATA VINAYAK" required>
+                <i class="fa fa-user"></i>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Card Number</label>
+              <div class="form-input-wrapper">
+                <input type="text" id="card-number" class="form-input" placeholder="4000 1234 5678 9010" required>
+                <i class="fa fa-credit-card"></i>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label class="form-label">Expiration Date</label>
+                <div class="form-input-wrapper">
+                  <input type="text" id="card-expiry" class="form-input" placeholder="MM/YY" required>
+                  <i class="fa fa-calendar-alt"></i>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">CVV Code</label>
+                <div class="form-input-wrapper">
+                  <input type="password" id="card-cvv" class="form-input" placeholder="123" required>
+                  <i class="fa fa-key"></i>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-form-submit" style="margin-top: 10px;">
+              Authorize Secure Payment
+            </button>
+          </form>
+        </div>
+
+        <!-- TAB CONTENT 2: UPI PAYMENT -->
+        <div id="payment-upi-panel" style="display: none;">
+          <form id="upi-payment-form" class="glass" style="padding: 30px; border-radius: 16px; border: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 20px; align-items: center; text-align: center;">
+            <h3 style="font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; color: #fff; margin-bottom: 5px;">
+              Scan UPI QR Code
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 90%; margin-bottom: 5px;">
+              Scan the QR code below using any UPI app (GPay, PhonePe, Paytm, etc.) to complete your subscription payment.
+            </p>
+
+            <!-- Scanning QR Code -->
+            <div class="qr-code-wrapper" style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; width: 100%;">
+              <div class="qr-image-container">
+                <img id="upi-qr-image" src="" alt="NetPrime UPI QR Code">
+                <div class="qr-laser"></div>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px; max-width: 85%; text-align: center;">
+                Scan securely using any UPI app. Holographic scan validates automatically upon scanning.
+              </p>
+            </div>
+
+            <button type="submit" class="btn-form-submit" style="margin-top: 10px; width: 100%;">
+              Verify Payment & Activate
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- SUCCESSFUL TRANSACTION SHEET (DYNAMICALLY UNLOCKED) -->
+    <div id="success-section" style="display: none; max-width: 600px; margin: 40px auto 0 auto; animation: scaleIn 0.5s ease both;">
+      <div class="glass" style="padding: 40px; border-radius: 20px; border: 1px solid rgba(0,255,102,0.2); text-align: center;">
+        
+        <!-- Glowing Holographic Checkmark -->
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: rgba(0, 255, 102, 0.1); border: 2px solid var(--accent-green); display: flex; align-items: center; justify-content: center; margin: 0 auto 25px auto; box-shadow: 0 0 20px rgba(0, 255, 102, 0.3);">
+          <i class="fa fa-check" style="color: var(--accent-green); font-size: 2.2rem; text-shadow: 0 0 5px rgba(0, 255, 102, 0.4);"></i>
+        </div>
+
+        <h2 style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 8px;">Subscription Activated!</h2>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 30px;">
+          Welcome to <strong style="color: var(--text-primary);">NetPrime Premium</strong>. Your electronic receipt has been generated successfully.
+        </p>
+
+        <!-- Dynamic Invoice Sheet -->
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 25px; margin-bottom: 35px; text-align: left; font-family: monospace; font-size: 0.9rem; color: var(--text-secondary); position: relative; line-height: 1.6;">
+          <div style="position: absolute; top: -1px; left: 0; width: 100%; height: 3px; background: var(--accent-magenta); border-radius: 12px 12px 0 0;"></div>
+          
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 15px; color: #fff; font-weight: bold;">
+            <span>TRANSACTION RECEIPT</span>
+            <span id="invoice-id">NP-482094</span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Subscriber:</span>
+            <span id="invoice-user" style="color: #fff; font-weight: bold;">Venkata Vinayak</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Date Issued:</span>
+            <span id="invoice-date">May 28, 2026</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Tier Status:</span>
+            <span id="invoice-tier" style="color: var(--accent-gold); font-weight: bold;">₹1 TRIAL ACTIVATED</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <span>Gateway:</span>
+            <span id="invoice-gateway" style="color: #fff;">3D Secure Visa/Mastercard</span>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px; font-size: 1.1rem; color: #fff; font-weight: bold;">
+            <span>Billed Amount:</span>
+            <span id="invoice-amount" style="color: var(--accent-magenta); font-weight: 900;">₹1 INR</span>
+          </div>
+        </div>
+
+        <button onclick="window.location.href='./index.html'" class="btn-premium" style="width: 100%; height: 50px; font-size: 1.1rem;">
+          Unlock Unlimited Catalog & Watch
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- State Managers & Scripts - load in synchronous dependency order -->
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/main.js"></script>
+  <script src="./js/checkout.js"></script>
+</body>
+</html>
