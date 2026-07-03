@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/netprime';
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/netprime';
   
   try {
     await mongoose.connect(uri);
