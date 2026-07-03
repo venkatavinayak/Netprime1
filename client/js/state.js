@@ -11,8 +11,33 @@
     if (typeof input === 'string' && input.startsWith('/api/')) {
       input = BACKEND_URL + input;
       init.credentials = 'include';
+      
+      const token = localStorage.getItem('netprime_token');
+      if (token) {
+        if (!init.headers) init.headers = {};
+        if (init.headers instanceof Headers) {
+          init.headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          init.headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
     }
-    return originalFetch(input, init);
+    
+    return originalFetch(input, init).then(async (response) => {
+      // Intercept login/google auth to store token locally
+      if (typeof input === 'string' && (input.includes('/api/auth/login') || input.includes('/api/auth/google'))) {
+        if (response.ok) {
+          try {
+            const clone = response.clone();
+            const data = await clone.json();
+            if (data.token) {
+              localStorage.setItem('netprime_token', data.token);
+            }
+          } catch (e) {}
+        }
+      }
+      return response;
+    });
   };
 
   // Expose helper to fetch configured API URL on other modules
@@ -611,6 +636,7 @@
     async logout() {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
+        localStorage.removeItem('netprime_token');
         this.currentUser = GUEST_USER;
         this.wishlist = [];
         this.triggerEvent('userChange', this.currentUser);

@@ -163,7 +163,12 @@ exports.login = async (req, res) => {
     });
 
     logger.info('User logged in: %s on %s (%s)', user.email, deviceName, os);
-    res.status(200).json({ message: 'Login successful!', user: { name: user.name, email: user.email, avatar: user.avatar } });
+    res.status(200).json({ 
+      message: 'Login successful!', 
+      user: { name: user.name, email: user.email, avatar: user.avatar },
+      token: accessToken,
+      refreshToken: refreshToken
+    });
   } catch (error) {
     logger.error('Login error: %O', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -239,7 +244,12 @@ exports.googleLogin = async (req, res) => {
     });
 
     logger.info('Google login successful: %s on %s', user.email, deviceName);
-    res.status(200).json({ message: 'Google authentication successful!', user: { name: user.name, email: user.email, avatar: user.avatar } });
+    res.status(200).json({ 
+      message: 'Google authentication successful!', 
+      user: { name: user.name, email: user.email, avatar: user.avatar },
+      token: accessToken,
+      refreshToken: refreshToken
+    });
   } catch (error) {
     logger.error('Google Auth error: %O', error);
     res.status(500).json({ error: 'Google Login verification failed.' });

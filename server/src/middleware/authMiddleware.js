@@ -4,12 +4,12 @@ const Subscription = require('../models/Subscription');
 const Session = require('../models/Session');
 const logger = require('../utils/logger');
 
-// Generate access token (15 mins)
+// Generate access token (7 days for cross-origin local storage fallback)
 const generateAccessToken = (user) => {
   return jwt.sign(
     { id: user._id, email: user.email, name: user.name },
     process.env.ACCESS_TOKEN_SECRET || 'netprime_access_secret_token_15m_auth_secret_key_987654321',
-    { expiresIn: '15m' }
+    { expiresIn: '7d' }
   );
 };
 
