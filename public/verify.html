@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime - Verify Email</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+
+  <style>
+    .verify-box {
+      max-width: 500px;
+      margin: 150px auto 50px auto;
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .status-icon {
+      font-size: 4rem;
+      margin-bottom: 25px;
+    }
+    .status-icon.success {
+      color: #00ff66;
+      text-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
+    }
+    .status-icon.error {
+      color: var(--accent-magenta);
+      text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BACKGROUND DECORATIONS -->
+  <div class="glow-bg-radial"></div>
+
+  <!-- CONTAINER -->
+  <div class="verify-box glass">
+    <div id="loading-state">
+      <i class="fa fa-circle-notch fa-spin status-icon" style="color: var(--accent-magenta);"></i>
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; color: #fff; margin-bottom: 10px;">Verifying Account</h2>
+      <p style="color: var(--text-secondary);">Validating your email verification credentials with the server...</p>
+    </div>
+
+    <div id="success-state" style="display: none;">
+      <i class="fa fa-circle-check status-icon success"></i>
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; color: #fff; margin-bottom: 10px;">Account Verified!</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 30px;">Your email address was successfully verified. You can now login to NetPrime and activate your subscription.</p>
+      <button class="btn-premium" onclick="navigateToLogin()" style="width: 100%;">Sign In Now</button>
+    </div>
+
+    <div id="error-state" style="display: none;">
+      <i class="fa fa-triangle-exclamation status-icon error"></i>
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; color: #fff; margin-bottom: 10px;">Verification Failed</h2>
+      <p id="error-message" style="color: var(--text-secondary); margin-bottom: 30px;">The verification token is invalid or has expired.</p>
+      <button class="btn-outline" onclick="window.location.href='./index.html'" style="width: 100%;">Back to Homepage</button>
+    </div>
+  </div>
+
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+
+      if (!token) {
+        showState('error', 'Token parameter is missing in verification link.');
+        return;
+      }
+
+      fetch(`/api/auth/verify-email?token=${token}`)
+        .then(res => res.json().then(data => ({ status: res.status, data })))
+        .then(({ status, data }) => {
+          if (status === 200) {
+            showState('success');
+          } else {
+            showState('error', data.error || 'Token validation failed.');
+          }
+        })
+        .catch(() => {
+          showState('error', 'Unable to reach authentication server. Please try again.');
+        });
+
+      function showState(state, errorMsg = '') {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('success-state').style.display = 'none';
+        document.getElementById('error-state').style.display = 'none';
+
+        if (state === 'success') {
+          document.getElementById('success-state').style.display = 'block';
+        } else if (state === 'error') {
+          document.getElementById('error-message').textContent = errorMsg;
+          document.getElementById('error-state').style.display = 'block';
+        }
+      }
+    });
+
+    function navigateToLogin() {
+      window.location.href = './index.html?showLogin=true';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime - Contact Support</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body style="background-color: var(--bg-primary);">
+
+  <!-- Floating Navigation Bar -->
+  <nav class="navbar scrolled">
+    <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
+      <span>NET<span class="text-magenta">PRIME</span></span>
+    </div>
+    
+    <ul class="navbar-menu">
+      <li class="navbar-item"><a href="./index.html">Home</a></li>
+      <li class="navbar-item"><a href="./profile.html">My Profile</a></li>
+      <li class="navbar-item"><a href="./checkout.html">Subscribe</a></li>
+    </ul>
+
+    <div class="navbar-actions">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <i id="theme-toggle-icon" class="fa fa-moon"></i>
+      </button>
+
+      <div id="navbar-actions-dynamic" style="display: flex; gap: 15px;"></div>
+
+      <div id="profile-nav-container" class="profile-nav-container" style="display: none;">
+        <button id="nav-avatar-btn" class="profile-avatar-btn">
+          <img id="nav-avatar-img" src="./assets/prof.png" alt="Avatar">
+        </button>
+        
+        <div id="profile-dropdown" class="profile-dropdown">
+          <div id="dropdown-user-block" class="profile-dropdown-user"></div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-user-circle"></i> My Account
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-heart"></i> My Wishlist
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./checkout.html'">
+            <i class="fa fa-ticket"></i> Premium Subscription
+          </div>
+          <div class="profile-dropdown-item" onclick="window.NetPrimeState.logout()">
+            <i class="fa fa-sign-out-alt"></i> Sign Out
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Centered Support Form -->
+  <main class="checkout-page container" style="padding-top: 110px;">
+    
+    <div style="max-width: 650px; margin: 0 auto;">
+      
+      <div class="contact-info-card glass" style="padding: 40px; border-radius: 16px;">
+        <h2 style="font-family: var(--font-display); font-size: 1.85rem; font-weight: 800; color: #fff; margin-bottom: 8px;">Contact Support</h2>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 30px;">
+          Have questions about your subscriptions or technical playback? Submit a support ticket below or use our direct contact channels.
+        </p>
+
+        <!-- Direct Channels -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 25px; margin-bottom: 25px;">
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--accent-magenta-subtle); display: flex; align-items: center; justify-content: center; color: var(--accent-magenta); font-size: 1.1rem; border: 1px solid var(--accent-magenta); flex-shrink: 0;">
+              <i class="fa fa-phone-alt"></i>
+            </div>
+            <div>
+              <h4 style="font-size: 0.95rem; font-weight: bold; margin: 0;">Direct Hotlines</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0 0;"><a href="tel:+918006387746" style="color: var(--accent-magenta); font-weight: bold;">+91 800-NET-PRIME</a></p>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(0,255,102,0.1); display: flex; align-items: center; justify-content: center; color: var(--accent-green); font-size: 1.1rem; border: 1px solid var(--accent-green); flex-shrink: 0;">
+              <i class="fa fa-envelope-open-text"></i>
+            </div>
+            <div>
+              <h4 style="font-size: 0.95rem; font-weight: bold; margin: 0;">Email Operations</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0 0;"><a href="mailto:support@netprime.com" style="color: var(--accent-magenta); font-weight: bold;">support@netprime.com</a></p>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 10px;">Submit a Ticket</h3>
+        <form id="support-ticket-form" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Subject</label>
+            <div class="form-input-wrapper">
+              <input type="text" id="ticket-subject" class="form-input" placeholder="e.g., Billing Inquiry" required style="padding-left: 15px;">
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Description Details</label>
+            <div class="form-input-wrapper">
+              <textarea id="ticket-desc" class="form-input" placeholder="Explain your concern in detail..." required style="padding: 12px 15px; height: 120px; resize: none;"></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-form-submit" style="height: 46px; font-size: 0.95rem; margin-top: 10px;">
+            Submit Support Request
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/main.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Dynamic Support Form Submission
+      const ticketForm = document.getElementById('support-ticket-form');
+      ticketForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const subject = document.getElementById('ticket-subject').value;
+        
+        const submitBtn = ticketForm.querySelector('.btn-form-submit');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting...';
+
+        setTimeout(() => {
+          window.showToastMessage(`Support ticket on "${subject}" submitted successfully!`);
+          ticketForm.reset();
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Support Request';
+        }, 1500);
+      });
+    });
+  </script>
+</body>
+</html>

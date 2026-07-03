@@ -12,44 +12,65 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Double Check Security Gate
-  const isPrem = window.NetPrimeState.isPremium();
-  if (!movie.isFree && !isPrem) {
-    alert('This content is reserved for Premium subscribers!');
-    window.location.href = './index.html';
-    return;
-  }
+  // Double Check Security Gate on Backend
+  window.NetPrimeState.onInitialized(async () => {
+    const authResult = await window.NetPrimeState.authorizeStream(movieId, movie.isFree);
+    if (!authResult.authorized) {
+      alert(authResult.error || 'This content is reserved for Premium subscribers!');
+      window.location.href = './index.html';
+      return;
+    }
+    initializeVideoPlayer();
+  });
 
-  // Populate Movie details in player header
-  const titleElem = document.getElementById('player-movie-title');
-  const metaElem = document.getElementById('player-movie-meta');
-  const videoSource = document.getElementById('video-source');
   const videoPlayer = document.getElementById('video-element');
+  const videoSource = document.getElementById('video-source');
   const videoContainer = document.getElementById('video-container');
 
-  if (titleElem) titleElem.textContent = movie.title;
-  if (metaElem) metaElem.textContent = `${movie.language} • ${movie.year} • Rating: ${movie.rating} ⭐`;
+  function initializeVideoPlayer() {
+    // Populate Movie details in player header
+    const titleElem = document.getElementById('player-movie-title');
+    const metaElem = document.getElementById('player-movie-meta');
 
-  // Set Video Source
-  // Try to use the local video if present, otherwise fallback to the public sample stream
-  if (videoSource && videoPlayer) {
-    // If the local video link exists, it will load it directly. 
-    // Otherwise browser automatically tries to load the source and fails over to next, 
-    // or we can set it via JS with fallback.
-    
-    // Set first source as local, second as public online trailer
-    videoPlayer.src = movie.video;
-    
-    // Fallback handler if local file fails (e.g. not copied or double clicked without asset)
-    videoPlayer.addEventListener('error', function(e) {
-      console.log('Local video file not found or failed to load. Falling back to public stream...');
-      // Fallback stream: Tears of Steel open movie trailer
-      videoPlayer.src = 'https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
+    if (titleElem) titleElem.textContent = movie.title;
+    if (metaElem) metaElem.textContent = `${movie.language} • ${movie.year} • Rating: ${movie.rating} ⭐`;
+
+    if (videoSource && videoPlayer) {
+      videoPlayer.src = movie.video;
+      
+      // Load previous resume position if present in watch history
+      const historyItem = window.NetPrimeState.currentUser.watchHistory?.find(h => h.movieId === movieId);
+      if (historyItem && historyItem.resumePosition > 0) {
+        videoPlayer.addEventListener('loadedmetadata', () => {
+          videoPlayer.currentTime = historyItem.resumePosition;
+        }, { once: true });
+      }
+
+      videoPlayer.addEventListener('error', function(e) {
+        console.log('Local video file not found or failed to load. Falling back to public stream...');
+        videoPlayer.src = 'https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
+        videoPlayer.load();
+        videoPlayer.play().catch(err => console.log('Autoplay blocked: ', err));
+      }, { once: true });
+
       videoPlayer.load();
-      videoPlayer.play().catch(err => console.log('Autoplay blocked: ', err));
-    }, { once: true });
+    }
 
-    videoPlayer.load();
+    // Set up periodic watch history syncing (every 10 seconds)
+    let lastSavedTime = 0;
+    videoPlayer.addEventListener('timeupdate', () => {
+      const curTime = Math.floor(videoPlayer.currentTime);
+      // Update history every 10 seconds or at start
+      if (curTime > 0 && curTime % 10 === 0 && curTime !== lastSavedTime) {
+        lastSavedTime = curTime;
+        window.NetPrimeState.updateWatchHistory(movieId, Math.floor(videoPlayer.duration || 0), curTime);
+      }
+    });
+
+    // Save final position on pause or unload
+    videoPlayer.addEventListener('pause', () => {
+      window.NetPrimeState.updateWatchHistory(movieId, Math.floor(videoPlayer.duration || 0), Math.floor(videoPlayer.currentTime));
+    });
   }
 
   // Controls elements

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime Profile - Account Settings & Wishlist</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+  
+  <style>
+    .grid-two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    @media (max-width: 900px) {
+      .grid-two-column {
+        grid-template-columns: 1fr;
+      }
+    }
+    .profile-card {
+      min-height: 480px;
+    }
+    .panel-header {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+    }
+    .device-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .device-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .device-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .device-icon {
+      font-size: 1.8rem;
+      color: var(--accent-magenta);
+    }
+    .invoice-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    .invoice-table th, .invoice-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+    }
+    .invoice-table th {
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .btn-download-invoice {
+      background: rgba(255,0,127,0.1);
+      color: var(--accent-magenta);
+      border: 1px solid rgba(255,0,127,0.2);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-download-invoice:hover {
+      background: var(--accent-magenta);
+      color: #fff;
+    }
+  </style>
+</head>
+<body style="background-color: var(--bg-primary);">
+
+  <!-- Floating Navigation Bar -->
+  <nav class="navbar scrolled">
+    <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
+      <span>NET<span class="text-magenta">PRIME</span></span>
+    </div>
+    
+    <ul class="navbar-menu">
+      <li class="navbar-item"><a href="./index.html">Home</a></li>
+      <li class="navbar-item active"><a href="./profile.html">My Profile</a></li>
+      <li class="navbar-item"><a href="./checkout.html">Subscribe</a></li>
+      <li class="navbar-item"><a href="./contact.html">Support</a></li>
+    </ul>
+
+    <div class="navbar-actions">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Theme">
+        <i id="theme-toggle-icon" class="fa fa-moon"></i>
+      </button>
+
+      <div id="navbar-actions-dynamic" style="display: flex; gap: 15px;"></div>
+
+      <div id="profile-nav-container" class="profile-nav-container" style="display: none;">
+        <button id="nav-avatar-btn" class="profile-avatar-btn">
+          <img id="nav-avatar-img" src="./assets/prof.png" alt="Avatar">
+        </button>
+        
+        <div id="profile-dropdown" class="profile-dropdown">
+          <div id="dropdown-user-block" class="profile-dropdown-user"></div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-user-circle"></i> My Account
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./profile.html'">
+            <i class="fa fa-heart"></i> My Wishlist
+          </div>
+          <div class="profile-dropdown-item" onclick="window.location.href='./checkout.html'">
+            <i class="fa fa-ticket"></i> Premium Subscription
+          </div>
+          <div class="profile-dropdown-item" onclick="window.NetPrimeState.logout()">
+            <i class="fa fa-sign-out-alt"></i> Sign Out
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Profile Layout -->
+  <main class="profile-page container" style="margin-top: 110px;">
+    <div id="profile-section-wrapper">
+      
+      <!-- TOP GRID: Settings & Wishlist -->
+      <div class="grid-two-column">
+        
+        <!-- LEFT: User Details Profile Editor -->
+        <div class="profile-card glass" style="padding: 30px; border-radius: 16px;">
+          <h2 class="panel-header"><i class="fa fa-cog"></i> Profile Settings</h2>
+          
+          <div class="profile-details-row" style="margin-bottom: 25px;">
+            <div class="profile-avatar-large">
+              <img id="large-avatar-display" src="./assets/prof.png" alt="Avatar">
+            </div>
+            <div class="profile-info-block">
+              <h3 id="large-username-display" class="profile-username-title">-</h3>
+              <p id="large-email-display" class="profile-email-sub">-</p>
+              <div style="margin-top: 5px;">
+                <span id="large-tier-badge" class="badge badge-free">Free Tier</span>
+              </div>
+            </div>
+          </div>
+
+          <form id="profile-edit-form" style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Edit Display Name</label>
+              <div class="form-input-wrapper">
+                <input type="text" id="edit-username" class="form-input" placeholder="Display Name" required>
+                <i class="fa fa-user-edit"></i>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label">Choose Avatar Preset</label>
+              <div class="avatar-grid-picker">
+                <div class="avatar-pick-option selected" data-avatar="avatar1.png">
+                  <img src="./assets/prof.png" alt="preset 1">
+                </div>
+                <div class="avatar-pick-option" data-avatar="avatar2.png">
+                  <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=100&q=80" alt="preset 2">
+                </div>
+                <div class="avatar-pick-option" data-avatar="avatar3.png">
+                  <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80" alt="preset 3">
+                </div>
+                <div class="avatar-pick-option" data-avatar="avatar4.png">
+                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="preset 4">
+                </div>
+                <div class="avatar-pick-option" data-avatar="avatar5.png">
+                  <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=100&q=80" alt="preset 5">
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-form-submit" style="height: 46px; font-size: 0.95rem; margin-top: 10px;">
+              Save Profile Changes
+            </button>
+          </form>
+        </div>
+
+        <!-- RIGHT: Live Wishlist Showcase -->
+        <div class="glass" style="padding: 30px; border-radius: 16px; min-height: 480px; display: flex; flex-direction: column;">
+          <h2 class="panel-header"><i class="fa fa-heart" style="color: var(--accent-magenta);"></i> My Wishlist</h2>
+          <div id="wishlist-grid-track" class="wishlist-grid" style="flex: 1;"></div>
+        </div>
+      </div>
+
+      <!-- BOTTOM GRID: Device Management & Invoice History -->
+      <div class="grid-two-column">
+        
+        <!-- LEFT: Device Management (Netflix style) -->
+        <div class="glass" style="padding: 30px; border-radius: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; margin-bottom: 20px;">
+            <h2 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: #fff; margin: 0; display: flex; align-items: center; gap: 10px;">
+              <i class="fa fa-desktop"></i> Logged In Devices
+            </h2>
+            <button class="btn-action btn-cancel" id="btn-clear-other-devices" style="font-size: 0.75rem;"><i class="fa fa-sign-out-alt"></i> Logout Others</button>
+          </div>
+          
+          <div class="device-list" id="device-list-container">
+            <p style="color: var(--text-secondary); text-align: center;">Reading session trackers...</p>
+          </div>
+        </div>
+
+        <!-- RIGHT: Billing Invoice History -->
+        <div class="glass" style="padding: 30px; border-radius: 16px;">
+          <h2 class="panel-header"><i class="fa fa-file-invoice-dollar"></i> Transaction History</h2>
+          
+          <div style="overflow-x: auto; max-height: 320px;">
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th>Plan Tier</th>
+                  <th>Amount</th>
+                  <th>Date Paid</th>
+                  <th>Receipt</th>
+                </tr>
+              </thead>
+              <tbody id="invoice-history-body">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--text-secondary);">Querying transactions...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/main.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.NetPrimeState.onInitialized(() => {
+        const user = window.NetPrimeState.getCurrentUser();
+        
+        if (!user || user.username === 'Guest User') {
+          document.getElementById('profile-section-wrapper').innerHTML = `
+            <div class="glass" style="padding: 60px 40px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 40px auto 0 auto;">
+              <i class="fa fa-user-circle" style="font-size: 4rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px;"></i>
+              <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Sign In Required</h2>
+              <p style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 30px;">
+                Log in to your NetPrime account to view settings, check transactions, and manage active devices.
+              </p>
+              <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn-outline" onclick="showAuthModal('login')">Sign In</button>
+                <button class="btn-premium" onclick="showAuthModal('signup')">Create Free Account</button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // Populate User Info elements
+        const editInput = document.getElementById('edit-username');
+        const largeName = document.getElementById('large-username-display');
+        const largeEmail = document.getElementById('large-email-display');
+        const largeAvatar = document.getElementById('large-avatar-display');
+        const largeTier = document.getElementById('large-tier-badge');
+
+        editInput.value = user.username;
+        largeName.textContent = user.username;
+        largeEmail.textContent = user.email;
+        largeAvatar.src = getAvatarPath(user.avatar);
+        
+        const isPrem = window.NetPrimeState.isPremium();
+        largeTier.className = `badge ${isPrem ? 'badge-premium' : 'badge-free'}`;
+        largeTier.innerHTML = isPrem ? `<i class="fa fa-star"></i> Premium (${user.tier})` : 'Free Tier';
+
+        // Preset Avatars highlighting
+        const options = document.querySelectorAll('.avatar-pick-option');
+        let activeAvatar = user.avatar || 'avatar1.png';
+
+        if (activeAvatar && !activeAvatar.startsWith('avatar')) {
+          options.forEach(o => o.classList.remove('selected'));
+        }
+
+        options.forEach(opt => {
+          const val = opt.getAttribute('data-avatar');
+          if (val === activeAvatar) {
+            options.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+          }
+          opt.addEventListener('click', () => {
+            options.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            activeAvatar = val;
+            largeAvatar.src = getAvatarPath(val);
+          });
+        });
+
+        // Form Submit to Backend API
+        const profileForm = document.getElementById('profile-edit-form');
+        profileForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const submitBtn = profileForm.querySelector('.btn-form-submit');
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Saving details...';
+
+          try {
+            const res = await fetch('/api/user/profile', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: editInput.value.trim(), avatar: activeAvatar })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to update profile.');
+            
+            await window.NetPrimeState.refreshUserState();
+            largeName.textContent = editInput.value;
+            window.showToastMessage('Profile settings saved successfully!');
+          } catch (err) {
+            window.showToastMessage(err.message);
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Profile Changes';
+          }
+        });
+
+        // Load Wishlist, Devices, and Billing logs
+        renderWishlistGrid();
+        loadDevices();
+        loadBillingHistory();
+      });
+
+      // Renders wishlist items
+      function renderWishlistGrid() {
+        const grid = document.getElementById('wishlist-grid-track');
+        if (!grid) return;
+        const wishlistIds = window.NetPrimeState.getWishlist();
+        grid.innerHTML = '';
+
+        if (wishlistIds.length === 0) {
+          grid.innerHTML = `<div class="wishlist-empty-msg"><i class="fa fa-heart-broken" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 15px; display: block;"></i>Wishlist is empty.<br><a href="./index.html" style="color: var(--accent-magenta); font-weight: 600; margin-top: 10px; display: inline-block;">Browse Movies</a></div>`;
+          return;
+        }
+
+        wishlistIds.forEach(id => {
+          const movie = window.NetPrimeState.getMovieById(id);
+          if (!movie) return;
+
+          const cardWrapper = document.createElement('div');
+          cardWrapper.className = 'movie-card-wrapper';
+          cardWrapper.innerHTML = `
+            <div class="movie-card" data-id="${movie.id}">
+              <img class="movie-card-poster" src="${movie.poster}" alt="${movie.title}" onerror="this.src='./assets/prime.png'">
+              <div class="movie-card-badge"><span class="badge ${movie.isFree ? 'badge-free' : 'badge-premium'}">${movie.isFree ? 'Free' : '<i class="fa fa-lock"></i> Premium'}</span></div>
+              <div class="movie-card-overlay">
+                <div class="movie-card-details">
+                  <h4 class="movie-card-title">${movie.title}</h4>
+                  <div class="movie-card-meta"><span class="rating">★ ${movie.rating}</span></div>
+                  <div class="movie-card-actions">
+                    <button class="movie-card-play-btn" onclick="event.stopPropagation(); handleMovieClick('${movie.id}')">▶</button>
+                    <button class="movie-card-wishlist-btn active" onclick="event.stopPropagation(); removeWishlistItem('${movie.id}')">❤️</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          cardWrapper.querySelector('.movie-card').addEventListener('click', () => handleMovieClick(movie.id));
+          grid.appendChild(cardWrapper);
+        });
+      }
+
+      // Load active login device details
+      async function loadDevices() {
+        const container = document.getElementById('device-list-container');
+        try {
+          const res = await fetch('/api/user/sessions');
+          if (res.ok) {
+            const devices = await res.json();
+            container.innerHTML = '';
+            
+            devices.forEach(d => {
+              const item = document.createElement('div');
+              item.className = 'device-item';
+              
+              // Device OS icon selection
+              let icon = 'fa-desktop';
+              if (d.os === 'Android' || d.os === 'iOS') icon = 'fa-mobile-screen-button';
+              if (d.os === 'macOS') icon = 'fa-laptop';
+
+              const isCurrentBadge = d.isCurrent 
+                ? '<span class="badge badge-active" style="font-size: 0.65rem; padding: 2px 6px;">Current Device</span>'
+                : `<button class="btn-action btn-delete" onclick="logoutDevice('${d.id}')" style="font-size:0.75rem; padding: 4px 8px;">Logout</button>`;
+
+              item.innerHTML = `
+                <div class="device-info">
+                  <i class="fa ${icon} device-icon"></i>
+                  <div>
+                    <div style="font-weight: bold; color: #fff;">${d.deviceName} (${d.os})</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">${d.browser} • IP: ${d.ipAddress || 'Unknown'}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Last Active: ${new Date(d.lastSeen).toLocaleString()}</div>
+                  </div>
+                </div>
+                ${isCurrentBadge}
+              `;
+              container.appendChild(item);
+            });
+          }
+        } catch (error) {
+          container.innerHTML = '<p style="color: var(--accent-magenta); text-align:center;">Failed to load devices.</p>';
+        }
+      }
+
+      // Load payment/invoice history
+      async function loadBillingHistory() {
+        const tbody = document.getElementById('invoice-history-body');
+        try {
+          const res = await fetch('/api/payments/history');
+          if (res.ok) {
+            const invoices = await res.json();
+            if (invoices.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No subscription payments found.</td></tr>';
+              return;
+            }
+
+            tbody.innerHTML = '';
+            invoices.forEach(inv => {
+              const tr = document.createElement('tr');
+              
+              // Map badge class
+              let badge = 'badge-free';
+              if (inv.status === 'SUCCESS') badge = 'badge-active';
+              if (inv.status === 'FAILED') badge = 'badge-expired';
+
+              const downloadBtn = inv.status === 'SUCCESS'
+                ? `<button class="btn-download-invoice" onclick="downloadPDF('${inv._id}')"><i class="fa fa-file-pdf"></i> PDF</button>`
+                : '<span style="color: #666; font-size: 0.8rem;">N/A</span>';
+
+              tr.innerHTML = `
+                <td><strong style="color: #fff;">${inv.plan}</strong> <span class="badge ${badge}" style="font-size: 0.65rem; padding: 2px 6px;">${inv.status}</span></td>
+                <td style="color: #ccc;">₹${inv.amount}</td>
+                <td style="color: #ccc;">${new Date(inv.createdAt).toLocaleDateString()}</td>
+                <td>${downloadBtn}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+        } catch (error) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--accent-magenta);">Error loading billing.</td></tr>';
+        }
+      }
+
+      // Action triggers
+      window.logoutDevice = async (sessionId) => {
+        if (!confirm('Log out of this device? The session token will be immediately terminated.')) return;
+        try {
+          const res = await fetch(`/api/user/sessions/${sessionId}`, { method: 'DELETE' });
+          if (res.ok) {
+            window.showToastMessage('Device session terminated.');
+            loadDevices();
+          }
+        } catch (error) {
+          window.showToastMessage('Logout failed.');
+        }
+      };
+
+      document.getElementById('btn-clear-other-devices').addEventListener('click', async () => {
+        if (!confirm('Log out of all other active devices?')) return;
+        try {
+          const res = await fetch('/api/user/sessions/clear-others', { method: 'POST' });
+          if (res.ok) {
+            window.showToastMessage('Successfully logged out other devices.');
+            loadDevices();
+          }
+        } catch (error) {
+          window.showToastMessage('Logout failed.');
+        }
+      });
+
+      window.downloadPDF = (paymentId) => {
+        // Redirect browser to file download route
+        window.location.href = `/api/payments/invoice/${paymentId}`;
+      };
+
+      window.removeWishlistItem = (movieId) => {
+        window.NetPrimeState.removeFromWishlist(movieId);
+        window.showToastMessage('Removed from wishlist.');
+        renderWishlistGrid();
+      };
+    });
+  </script>
+</body>
+</html>

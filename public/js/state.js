@@ -460,53 +460,76 @@
   // State Manager Class
   class StateManager {
     constructor() {
-      this.currentUser = this.loadUser();
-      this.wishlist = this.loadWishlist();
+      this.currentUser = GUEST_USER;
+      this.wishlist = [];
       this.movies = moviesDatabase;
+      this.onInitializedCallbacks = [];
+      this.initialized = false;
       
       // Perform initial check on startup
-      this.checkPlanExpiry();
+      this.refreshUserState();
       
-      // Setup background validation checker (runs every 5 seconds)
+      // Setup background validation checker (runs every 15 seconds)
       setInterval(() => {
-        this.checkPlanExpiry();
-      }, 5000);
+        this.refreshUserState();
+      }, 15000);
     }
 
-    loadUser() {
-      const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-      if (savedUser) {
-        try {
-          return JSON.parse(savedUser);
-        } catch(e) {
-          return GUEST_USER;
+    async refreshUserState() {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          const mappedUser = {
+            id: data.user.id,
+            username: data.user.name,
+            email: data.user.email,
+            avatar: data.user.avatar,
+            tier: data.subscription.plan,
+            planStartDate: data.subscription.startDate,
+            planExpiryDate: data.subscription.expiryDate,
+            isEmailVerified: data.user.isEmailVerified
+          };
+
+          const oldTier = this.currentUser.tier;
+          this.currentUser = mappedUser;
+          this.wishlist = data.user.wishlist || [];
+
+          this.triggerEvent('userChange', this.currentUser);
+          this.triggerEvent('wishlistChange', this.wishlist);
+
+          // Force page reload if subscription expired and demoted back to free
+          if (oldTier && oldTier !== 'FREE' && mappedUser.tier === 'FREE') {
+            window.showToastMessage('Your premium subscription validity has completed. Reverted to free tier.');
+            setTimeout(() => {
+              window.location.reload();
+            }, 4000);
+          }
+        } else {
+          // If unauthorised, clear state to guest
+          if (this.currentUser.username !== 'Guest User') {
+            this.currentUser = GUEST_USER;
+            this.wishlist = [];
+            this.triggerEvent('userChange', this.currentUser);
+            this.triggerEvent('wishlistChange', this.wishlist);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync auth state with backend:', error);
+      } finally {
+        if (!this.initialized) {
+          this.initialized = true;
+          this.onInitializedCallbacks.forEach(cb => cb());
         }
       }
-      return GUEST_USER;
     }
 
-    saveUser(user) {
-      this.currentUser = user;
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-      this.triggerEvent('userChange', user);
-    }
-
-    loadWishlist() {
-      const savedWishlist = localStorage.getItem(STORAGE_KEY_WISHLIST);
-      if (savedWishlist) {
-        try {
-          return JSON.parse(savedWishlist);
-        } catch(e) {
-          return [];
-        }
+    onInitialized(callback) {
+      if (this.initialized) {
+        callback();
+      } else {
+        this.onInitializedCallbacks.push(callback);
       }
-      return [];
-    }
-
-    saveWishlist(list) {
-      this.wishlist = list;
-      localStorage.setItem(STORAGE_KEY_WISHLIST, JSON.stringify(list));
-      this.triggerEvent('wishlistChange', list);
     }
 
     getCurrentUser() {
@@ -517,101 +540,65 @@
       return this.currentUser && this.currentUser.tier !== 'FREE';
     }
 
-    login(username, email, avatar = 'avatar1.png') {
-      const user = {
-        username: username,
-        email: email,
-        avatar: avatar,
-        tier: 'FREE' // Starts as free
-      };
-      this.saveUser(user);
-      this.saveWishlist([]); // Clear wishlist for new user
-    }
-
-    loginWithGoogle(name, email, avatar) {
-      const user = {
-        username: name,
-        email: email,
-        avatar: avatar || 'avatar3.png',
-        tier: 'FREE'
-      };
-      this.saveUser(user);
-      this.saveWishlist([]);
-    }
-
-    logout() {
-      this.saveUser(GUEST_USER);
-      this.saveWishlist([]);
-      window.location.reload();
-    }
-
-    upgradeToPremium(tierName = 'TRIAL') {
-      if (this.currentUser) {
-        let validityMs = 30 * 24 * 60 * 60 * 1000; // default 30 days
-        if (tierName === 'TRIAL') {
-          validityMs = 60 * 1000; // 1 minute validity for Trial so the user can test the automatic expiration!
-        } else if (tierName === 'MONTHLY') {
-          validityMs = 30 * 24 * 60 * 60 * 1000; // 30 days
-        } else if (tierName === 'YEARLY') {
-          validityMs = 365 * 24 * 60 * 60 * 1000; // 365 days
-        }
-
-        const updatedUser = { 
-          ...this.currentUser, 
-          tier: tierName,
-          planStartDate: Date.now(),
-          planExpiryDate: Date.now() + validityMs
-        };
-        this.saveUser(updatedUser);
+    async login(email, password, rememberMe = false) {
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, rememberMe })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed.');
+        
+        await this.refreshUserState();
+        return data;
+      } catch (err) {
+        throw err;
       }
     }
 
-    checkPlanExpiry() {
-      if (this.currentUser && this.currentUser.tier !== 'FREE' && this.currentUser.planExpiryDate) {
-        if (Date.now() > this.currentUser.planExpiryDate) {
-          // Demote back to FREE tier
-          const updatedUser = {
-            ...this.currentUser,
-            tier: 'FREE',
-            planStartDate: null,
-            planExpiryDate: null
-          };
-          this.saveUser(updatedUser);
+    async register(name, email, password) {
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed.');
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
 
-          // Alert user through custom toast notification
-          setTimeout(() => {
-            if (window.showToastMessage) {
-              window.showToastMessage('Your premium subscription validity has completed. Demoted to normal user.');
-            } else {
-              const toast = document.createElement('div');
-              toast.id = 'netprime-toast';
-              toast.style.cssText = `
-                position: fixed;
-                bottom: 30px;
-                right: 30px;
-                background: rgba(255, 0, 127, 0.95);
-                color: #fff;
-                padding: 14px 24px;
-                border-radius: 8px;
-                z-index: 10000;
-                font-family: sans-serif;
-                font-size: 0.9rem;
-                box-shadow: 0 5px 15px rgba(255,0,127,0.3);
-                animation: slideIn 0.3s ease forwards;
-              `;
-              toast.textContent = 'Your premium subscription validity has completed. Reverted to normal user.';
-              document.body.appendChild(toast);
-              setTimeout(() => {
-                toast.remove();
-              }, 4000);
-            }
-          }, 500);
+    async loginWithGoogle(idToken) {
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Google Authentication failed.');
+        
+        await this.refreshUserState();
+        return data;
+      } catch (err) {
+        throw err;
+      }
+    }
 
-          // Reload after toast fades so that premium content locks back up
-          setTimeout(() => {
-            window.location.reload();
-          }, 4500);
-        }
+    async logout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        this.currentUser = GUEST_USER;
+        this.wishlist = [];
+        this.triggerEvent('userChange', this.currentUser);
+        this.triggerEvent('wishlistChange', this.wishlist);
+        window.location.href = './index.html';
+      } catch (error) {
+        console.error('Logout error:', error);
       }
     }
 
@@ -623,16 +610,61 @@
       return this.wishlist.includes(movieId);
     }
 
-    addToWishlist(movieId) {
-      if (!this.wishlist.includes(movieId)) {
-        const updated = [...this.wishlist, movieId];
-        this.saveWishlist(updated);
+    async addToWishlist(movieId) {
+      try {
+        const res = await fetch('/api/user/wishlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ movieId })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.wishlist = data.wishlist || [];
+          this.triggerEvent('wishlistChange', this.wishlist);
+        }
+      } catch (error) {
+        console.error('Error adding to wishlist:', error);
       }
     }
 
-    removeFromWishlist(movieId) {
-      const updated = this.wishlist.filter(id => id !== movieId);
-      this.saveWishlist(updated);
+    async removeFromWishlist(movieId) {
+      try {
+        const res = await fetch(`/api/user/wishlist/${movieId}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.wishlist = data.wishlist || [];
+          this.triggerEvent('wishlistChange', this.wishlist);
+        }
+      } catch (error) {
+        console.error('Error removing from wishlist:', error);
+      }
+    }
+
+    async updateWatchHistory(movieId, duration, resumePosition) {
+      try {
+        await fetch('/api/user/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ movieId, duration, resumePosition })
+        });
+      } catch (error) {
+        console.error('Error updating watch history:', error);
+      }
+    }
+
+    async authorizeStream(movieId, isFree) {
+      try {
+        const res = await fetch(`/api/user/stream?movieId=${movieId}&isFree=${isFree}`);
+        const data = await res.json();
+        return {
+          authorized: res.ok && data.authorized,
+          error: data.error
+        };
+      } catch (error) {
+        return { authorized: false, error: 'Network playback authorization failed.' };
+      }
     }
 
     getMovieById(movieId) {
@@ -662,13 +694,6 @@
     triggerEvent(eventName, detail) {
       const event = new CustomEvent('netprime_' + eventName, { detail: detail });
       window.dispatchEvent(event);
-      
-      // Dispatch standard DOM events to notify elements that might be listening across tabs
-      localStorage.setItem('netprime_event_sync', JSON.stringify({
-        name: eventName,
-        detail: detail,
-        timestamp: Date.now()
-      }));
     }
   }
 

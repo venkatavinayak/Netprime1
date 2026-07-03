@@ -1,5 +1,18 @@
 # NetPrime GitIgnore
 
+# Node modules & logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Environment Config & Private Secrets
+.env
+firebase-service-account.json
+*service-account*.json
+
 # Large Video Assets
 *.mp4
 *.mkv
@@ -8,6 +21,7 @@
 
 # Sensitive/Personal Payment Details
 assets/payment_qr.png
+public/assets/payment_qr.png
 
 # Operating System Files
 Thumbs.db
@@ -24,3 +38,6 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.swp
+
+# Local Netlify folder
+.netlify
