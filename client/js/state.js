@@ -706,14 +706,15 @@
     async logout() {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
         localStorage.removeItem('netprime_token');
         this.currentUser = GUEST_USER;
         this.wishlist = [];
         this.triggerEvent('userChange', this.currentUser);
         this.triggerEvent('wishlistChange', this.wishlist);
         window.location.href = './index.html';
-      } catch (error) {
-        console.error('Logout error:', error);
       }
     }
 
