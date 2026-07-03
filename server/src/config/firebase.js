@@ -7,20 +7,31 @@ const logger = require('../utils/logger');
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './firebase-service-account.json';
 const fullPath = path.resolve(serviceAccountPath);
 
+const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 let firebaseAdmin = null;
 
-if (fs.existsSync(fullPath)) {
+if (serviceAccountJson) {
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    firebaseAdmin = admin.initializeApp({
+      credential: admin.cert(serviceAccount)
+    });
+    logger.info('Firebase Admin SDK initialized successfully from environment JSON.');
+  } catch (error) {
+    logger.error('Failed to parse Firebase service account JSON from environment: %O', error);
+  }
+} else if (fs.existsSync(fullPath)) {
   try {
     const serviceAccount = require(fullPath);
     firebaseAdmin = admin.initializeApp({
       credential: admin.cert(serviceAccount)
     });
-    logger.info('Firebase Admin SDK initialized successfully.');
+    logger.info('Firebase Admin SDK initialized successfully from local file.');
   } catch (error) {
-    logger.error('Failed to parse Firebase service account key: %O', error);
+    logger.error('Failed to parse Firebase service account file: %O', error);
   }
 } else {
-  logger.warn(`Firebase service account file not found at ${serviceAccountPath}. Google Login will use a mock token decoder for local development.`);
+  logger.warn(`Firebase credentials not found in env variable or local file at ${serviceAccountPath}. Google Login will use a mock token decoder.`);
 }
 
 // Fallback Google Login verifier for mock testing if firebase-admin is not initialized
