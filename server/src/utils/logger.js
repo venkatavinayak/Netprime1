@@ -1,5 +1,12 @@
 const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
+
+// Ensure logs directory exists programmatically
+const logsDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 // Logger format configuration
 const logFormat = winston.format.combine(
@@ -15,23 +22,21 @@ const logger = winston.createLogger({
   defaultMeta: { service: 'netprime-backend' },
   transports: [
     new winston.transports.File({ 
-      filename: path.join(__dirname, '../../logs/error.log'), 
+      filename: path.join(logsDir, 'error.log'), 
       level: 'error' 
     }),
     new winston.transports.File({ 
-      filename: path.join(__dirname, '../../logs/combined.log') 
+      filename: path.join(logsDir, 'combined.log') 
     })
   ]
 });
 
-// If not in production, log to console with simple format
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }));
-}
+// Log to console with simple format in all environments (so cloud dashboard captures logs)
+logger.add(new winston.transports.Console({
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.simple()
+  )
+}));
 
 module.exports = logger;
