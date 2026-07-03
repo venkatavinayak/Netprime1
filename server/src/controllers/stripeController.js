@@ -4,12 +4,12 @@ const Subscription = require('../models/Subscription');
 const Payment = require('../models/Payment');
 const logger = require('../utils/logger');
 const { generateInvoicePDF } = require('../utils/pdf');
-const { sendInvoiceEmail } = require('../utils/email');
+const { sendEmail } = require('../utils/email');
 
 const planPrices = {
-  TRIAL: 100,      // in paise (₹1)
-  MONTHLY: 19900,  // in paise (₹199)
-  YEARLY: 149900   // in paise (₹1499)
+  TRIAL: 1,      // ₹1 (matched locked backend price)
+  MONTHLY: 199,  // ₹199
+  YEARLY: 1499   // ₹1499
 };
 
 // Shared helper to handle subscription activation db updates and PDF invoicing
@@ -18,9 +18,9 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
   if (!user) throw new Error('User not found');
 
   // Check if payment was already processed
-  const existingPayment = await Payment.findOne({ transactionId });
+  const existingPayment = await Payment.findOne({ razorpayPaymentId: transactionId });
   if (existingPayment) {
-    const existingSub = await Subscription.findOne({ user: userId });
+    const existingSub = await Subscription.findOne({ userId: userId });
     return existingSub;
   }
 
@@ -33,10 +33,10 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
   expiryDate.setDate(expiryDate.getDate() + durationDays);
 
   // 1. Create or Update Subscription record
-  let subscription = await Subscription.findOne({ user: userId });
+  let subscription = await Subscription.findOne({ userId: userId });
   if (!subscription) {
     subscription = new Subscription({
-      user: userId,
+      userId: userId,
       plan: plan,
       startDate,
       expiryDate,
@@ -57,15 +57,17 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
   await user.save();
 
   // 3. Save payment details
-  const amountPaid = amountPaidOverride !== null ? amountPaidOverride : (planPrices[plan] / 100);
+  const amountPaid = amountPaidOverride !== null ? amountPaidOverride : planPrices[plan];
   const payment = new Payment({
-    user: userId,
-    subscription: subscription._id,
+    userId: userId,
+    subscriptionId: subscription._id,
+    plan: plan,
     amount: amountPaid,
     currency: 'INR',
     status: 'SUCCESS',
     method: 'Stripe',
-    transactionId: transactionId
+    razorpayOrderId: `stripe_sid_${transactionId.substring(0, 16)}_${Date.now()}`,
+    razorpayPaymentId: transactionId
   });
   await payment.save();
 
@@ -73,10 +75,45 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
 
   // 4. Generate & Send Invoice
   try {
-    const invoicePath = await generateInvoicePDF(payment, user, subscription);
-    await sendInvoiceEmail(user.email, invoicePath, payment);
+    const invoiceLink = `${process.env.CLIENT_URL || 'http://localhost:5000'}/api/payments/invoice/${payment._id}`;
+    await sendEmail({
+      to: user.email,
+      subject: 'NetPrime Subscription Activated! 🍿',
+      text: `Hi ${user.name},\nYour NetPrime Premium subscription (${payment.plan}) has been activated successfully! Billed Amount: ₹${payment.amount}. Expiry Date: ${subscription.expiryDate.toLocaleDateString()}.\nDownload your PDF receipt: ${invoiceLink}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 550px; padding: 25px; border: 1px solid #ff007f; border-radius: 12px; line-height: 1.6;">
+          <h2 style="color: #ff007f; margin-bottom: 5px;">Subscription Activated!</h2>
+          <p style="color: #666; font-size: 0.9rem; margin-top: 0;">NetPrime Premium Receipt</p>
+          <hr style="border: 0; border-top: 1px dashed #dddddd; margin: 20px 0;">
+          <p>Hi <strong>${user.name}</strong>,</p>
+          <p>Your subscription is active. Here is your transaction receipt details:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.95rem;">
+            <tr>
+              <td style="padding: 6px 0; color: #777;">Plan Tier:</td>
+              <td style="padding: 6px 0; font-weight: bold; text-align: right;">${payment.plan}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #777;">Paid Amount:</td>
+              <td style="padding: 6px 0; font-weight: bold; text-align: right; color: #ff007f;">₹${payment.amount} INR</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #777;">Payment ID:</td>
+              <td style="padding: 6px 0; font-family: monospace; text-align: right;">${transactionId || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #777;">Validity Expiry:</td>
+              <td style="padding: 6px 0; font-weight: bold; text-align: right; color: #ffaa00;">${subscription.expiryDate.toLocaleDateString()}</td>
+            </tr>
+          </table>
+          <div style="text-align: center; margin: 30px 0 15px 0;">
+            <a href="${invoiceLink}" style="display: inline-block; padding: 12px 24px; background-color: #ff007f; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 10px rgba(255,0,127,0.2);">Download PDF Invoice</a>
+          </div>
+          <p style="font-size: 0.8rem; color: #888; text-align: center;">Need help? Contact support at +91 800-NET-PRIME</p>
+        </div>
+      `
+    });
   } catch (pdfErr) {
-    logger.error('Failed to generate or mail invoice PDF inside helper: %O', pdfErr);
+    logger.error('Failed to generate or mail invoice PDF inside Stripe helper: %O', pdfErr);
   }
 
   return subscription;
