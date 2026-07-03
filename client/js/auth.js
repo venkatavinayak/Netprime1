@@ -290,7 +290,8 @@
           await window.NetPrimeState.loginWithGoogle(idToken);
           hideAuthModal();
           showToast('Google Sign In successful!');
-          const isAuthPage = window.location.pathname.includes('login.html') || window.location.pathname.includes('signup.html');
+          const path = window.location.pathname.toLowerCase();
+          const isAuthPage = path.includes('login') || path.includes('signup');
           if (isAuthPage) {
             setTimeout(() => window.location.href = './index.html', 800);
           } else {
@@ -320,7 +321,8 @@
             await window.NetPrimeState.loginWithGoogle(mockIdToken);
             hideAuthModal();
             showToast('Mock Google Login successful!');
-            const isAuthPage = window.location.pathname.includes('login.html') || window.location.pathname.includes('signup.html');
+            const path = window.location.pathname.toLowerCase();
+            const isAuthPage = path.includes('login') || path.includes('signup');
             if (isAuthPage) {
               setTimeout(() => window.location.href = './index.html', 800);
             } else {

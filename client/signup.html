@@ -86,6 +86,18 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      // Auto-redirect if already logged in
+      const checkAndRedirect = () => {
+        if (window.NetPrimeState && window.NetPrimeState.currentUser && window.NetPrimeState.currentUser.email) {
+          window.location.href = './index.html';
+        }
+      };
+      
+      if (window.NetPrimeState) {
+        window.NetPrimeState.addEventListener('userChange', checkAndRedirect);
+        checkAndRedirect();
+      }
+
       const signupForm = document.getElementById('standalone-signup-form');
       const googleBtn = document.getElementById('standalone-google-signup-btn');
 
