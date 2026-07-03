@@ -4,7 +4,7 @@
 (function() {
   const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://your-backend-render-url.com'; // CHANGE THIS to your deployed Render backend URL in production
+    : 'https://netprime1.onrender.com'; // Point to live Render backend in production
 
   const originalFetch = window.fetch;
   window.fetch = function(input, init = {}) {
