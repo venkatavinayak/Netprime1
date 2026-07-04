@@ -1,10 +1,15 @@
 const nodemailer = require('nodemailer');
 const logger = require('./logger');
 
+const emailPort = parseInt(process.env.EMAIL_PORT, 10) || 587;
+const emailSecure = process.env.EMAIL_SECURE
+  ? process.env.EMAIL_SECURE === 'true'
+  : emailPort === 465;
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: false, // true for 465, false for other ports
+  port: emailPort,
+  secure: emailSecure, // true for 465, false for STARTTLS ports like 587
   connectionTimeout: 10000, // 10 seconds connection timeout
   greetingTimeout: 10000,   // 10 seconds greeting timeout
   socketTimeout: 15000,     // 15 seconds socket activity timeout

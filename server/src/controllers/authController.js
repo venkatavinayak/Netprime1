@@ -8,6 +8,9 @@ const { verifyGoogleToken } = require('../config/firebase');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
 
+const normalizeEmail = (email) => (email || '').trim().toLowerCase();
+const getOtpRequestCount = (user) => Number.isFinite(user.otpRequestCount) ? user.otpRequestCount : 0;
+
 // Utility to parse device details from User Agent
 const parseUserAgent = (userAgent) => {
   const ua = userAgent || '';
@@ -31,7 +34,8 @@ const parseUserAgent = (userAgent) => {
 
 // Register User (Generates signup verification OTP)
 exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, password } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -94,7 +98,7 @@ exports.register = async (req, res) => {
 
 // Resend Signup Verification OTP
 exports.resendSignupOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -116,6 +120,7 @@ exports.resendSignupOtp = async (req, res) => {
       user.otpRequestCount = 0;
       user.otpRequestResetTime = undefined;
     }
+    user.otpRequestCount = getOtpRequestCount(user);
     
     if (user.otpRequestCount >= 3) {
       return res.status(429).json({ error: 'Too many requests. Please try again after 10 minutes.' });
@@ -165,7 +170,8 @@ exports.resendSignupOtp = async (req, res) => {
 
 // Verify Signup OTP (Completes registration and logs user in)
 exports.verifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const { otp } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -265,7 +271,7 @@ exports.verifyOtp = async (req, res) => {
 
 // Send Login Sign-in OTP (Passwordless Login Request)
 exports.sendLoginOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     
@@ -289,6 +295,7 @@ exports.sendLoginOtp = async (req, res) => {
       user.otpRequestCount = 0;
       user.otpRequestResetTime = undefined;
     }
+    user.otpRequestCount = getOtpRequestCount(user);
     
     if (user.otpRequestCount >= 3) {
       return res.status(429).json({ error: 'Too many requests. Please try again after 10 minutes.' });
@@ -311,10 +318,11 @@ exports.sendLoginOtp = async (req, res) => {
     
     await user.save();
 
-    // Send OTP Verification Email asynchronously (no await) to avoid SMTP network delay
-    sendEmail({
+    // Login OTP should confirm SMTP dispatch so real users are not sent to
+    // the verification screen when no email was accepted by the provider.
+    await sendEmail({
       to: user.email,
-      subject: 'Your NetPrime Sign-In Code 🍿',
+      subject: 'Your NetPrime Sign-In Code',
       text: `Your 6-digit one-time sign-in code is: ${otp}. It will expire in 5 minutes.`,
       html: `
         <div style="font-family: sans-serif; max-width: 500px; padding: 25px; border: 1px solid #ff007f; border-radius: 12px;">
@@ -326,20 +334,19 @@ exports.sendLoginOtp = async (req, res) => {
           <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not request this sign-in, please secure your account.</p>
         </div>
       `
-    }).catch(emailError => {
-      logger.error('Failed to send login verification email asynchronously: %O', emailError);
     });
 
     res.status(200).json(genericSuccess);
   } catch (error) {
     logger.error('Send Login OTP error: %O', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(503).json({ error: 'Unable to send login OTP email right now. Please try again shortly.' });
   }
 };
 
 // Verify Login OTP (Passwordless Login Completion)
 exports.verifyLoginOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const { otp } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -441,7 +448,8 @@ exports.verifyLoginOtp = async (req, res) => {
 
 // Login User
 exports.login = async (req, res) => {
-  const { email, password, rememberMe } = req.body;
+  const { password, rememberMe } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
