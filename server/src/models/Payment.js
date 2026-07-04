@@ -7,7 +7,9 @@ const PaymentSchema = new mongoose.Schema({
   amount: { type: Number, required: true }, // in standard format, e.g. 199.00
   currency: { type: String, default: 'INR' },
   razorpayOrderId: { type: String, required: true, unique: true },
-  razorpayPaymentId: { type: String },
+  // Used for both Razorpay payment IDs and Stripe payment-intent/session IDs.
+  // A sparse unique index makes webhook delivery idempotent.
+  razorpayPaymentId: { type: String, unique: true, sparse: true },
   razorpaySignature: { type: String },
   status: { 
     type: String, 

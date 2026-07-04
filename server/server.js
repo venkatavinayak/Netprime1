@@ -22,6 +22,8 @@ const errorHandler = require('./src/middleware/errorMiddleware');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const paymentRoutes = require('./src/routes/paymentRoutes');
+const paymentController = require('./src/controllers/paymentController');
+const stripeController = require('./src/controllers/stripeController');
 const adminRoutes = require('./src/routes/adminRoutes');
 
 // Initialize DB & Scheduler
@@ -35,6 +37,11 @@ app.set('trust proxy', 1); // Trust Render proxy load balancers for rate-limitin
 app.use(helmetConfig);
 app.use(corsConfig);
 app.use(generalLimiter);
+
+// Payment providers sign the exact request bytes. These endpoints must be
+// registered before express.json(), otherwise signature verification is invalid.
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), paymentController.handleWebhook);
+app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), stripeController.handleStripeWebhook);
 
 // Express Parser Middlewares
 app.use(express.json());

@@ -271,29 +271,40 @@
           const sessionId = urlParams.get('session_id');
           const plan = urlParams.get('plan') || 'TRIAL';
           
-          window.showToastMessage('Verifying payment session with Stripe...');
+          const verifyPaymentSession = (attempts = 0) => {
+            fetch('/api/payments/stripe/verify-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ session_id: sessionId, plan: plan })
+            })
+            .then(res => res.json())
+            .then(async (data) => {
+              if (data.status === 'SUCCESS') {
+                window.showToastMessage('Payment verified! Welcome to NetPrime Premium.');
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                await window.NetPrimeState.refreshUserState();
+                window.location.reload();
+              } else if (data.status === 'PROCESSING') {
+                if (attempts < 5) {
+                  window.showToastMessage('Payment processing... waiting for verification.');
+                  setTimeout(() => verifyPaymentSession(attempts + 1), 2000);
+                } else {
+                  window.showToastMessage('Payment processing taking longer than expected. We will notify you via email once active!');
+                  const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                  window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                }
+              } else {
+                window.showToastMessage(data.error || 'Payment verification failed.');
+              }
+            })
+            .catch(err => {
+              console.error('Verify session error:', err);
+              window.showToastMessage('Error verifying checkout session.');
+            });
+          };
           
-          fetch('/api/payments/stripe/verify-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId, plan: plan })
-          })
-          .then(res => res.json())
-          .then(async (data) => {
-            if (data.status === 'SUCCESS') {
-              window.showToastMessage('Payment verified! Welcome to NetPrime Premium.');
-              const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-              window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-              await window.NetPrimeState.refreshUserState();
-              window.location.reload();
-            } else {
-              window.showToastMessage(data.error || 'Payment verification failed.');
-            }
-          })
-          .catch(err => {
-            console.error('Verify session error:', err);
-            window.showToastMessage('Error verifying checkout session.');
-          });
+          verifyPaymentSession();
           return;
         }
 

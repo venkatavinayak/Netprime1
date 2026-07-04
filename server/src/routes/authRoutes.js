@@ -25,8 +25,8 @@ router.get('/diagnostics/logs', (req, res) => {
   if (req.query.secret !== 'netprime_debug_secret_12345') {
     return res.status(403).send('Forbidden');
   }
-  const combLogPath = path.join(__dirname, '../../../logs/combined.log');
-  const errLogPath = path.join(__dirname, '../../../logs/error.log');
+  const combLogPath = path.join(__dirname, '../../logs/combined.log');
+  const errLogPath = path.join(__dirname, '../../logs/error.log');
   
   let result = '=== COMBINED LOG ===\n';
   if (fs.existsSync(combLogPath)) {

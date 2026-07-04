@@ -42,8 +42,8 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Generate 6-digit OTP code
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP code (cryptographically secure)
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
@@ -61,8 +61,8 @@ exports.register = async (req, res) => {
 
     await user.save();
 
-    // Send OTP Verification Email
-    await sendEmail({
+    // Send OTP Verification Email asynchronously (no await) to avoid SMTP network delay
+    sendEmail({
       to: user.email,
       subject: 'Verify Your NetPrime Account 🍿',
       text: `Your 6-digit verification code is: ${otp}. It will expire in 5 minutes.`,
@@ -77,10 +77,15 @@ exports.register = async (req, res) => {
           <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not sign up for NetPrime, please ignore this email.</p>
         </div>
       `
+    }).catch(emailError => {
+      logger.error('Failed to send verification email asynchronously during registration: %O', emailError);
     });
 
-    logger.info('New user registered, verification OTP dispatched: %s', user.email);
-    res.status(201).json({ message: 'Registration successful! Verification OTP sent to email.', email: user.email });
+    logger.info('New user registered, verification OTP dispatched asynchronously: %s', user.email);
+    res.status(201).json({
+      message: 'Registration successful! Verification OTP sent to email.',
+      email: user.email
+    });
   } catch (error) {
     logger.error('Registration error: %O', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -116,24 +121,24 @@ exports.resendSignupOtp = async (req, res) => {
       return res.status(429).json({ error: 'Too many requests. Please try again after 10 minutes.' });
     }
 
-    // Increment request count
-    user.otpRequestCount += 1;
-    if (!user.otpRequestResetTime) {
-      user.otpRequestResetTime = new Date(Date.now() + 10 * 60 * 1000);
-    }
-
     // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     
+    // Save state before email attempt to prevent fast spamming
     user.otpCodeHash = otpHash;
     user.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
     user.otpSentAt = now;
     user.otpAttempts = 0;
+    user.otpRequestCount += 1;
+    if (!user.otpRequestResetTime) {
+      user.otpRequestResetTime = new Date(Date.now() + 10 * 60 * 1000);
+    }
     
     await user.save();
 
-    await sendEmail({
+    // Send OTP Verification Email asynchronously (no await) to avoid SMTP network delay
+    sendEmail({
       to: user.email,
       subject: 'Verify Your NetPrime Account 🍿',
       text: `Your new verification code is: ${otp}. It will expire in 5 minutes.`,
@@ -147,6 +152,8 @@ exports.resendSignupOtp = async (req, res) => {
           <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not request this, please ignore this email.</p>
         </div>
       `
+    }).catch(emailError => {
+      logger.error('Failed to send verification email asynchronously during resend: %O', emailError);
     });
 
     res.status(200).json({ message: 'New verification OTP sent successfully.' });
@@ -195,6 +202,9 @@ exports.verifyOtp = async (req, res) => {
     user.otpCodeHash = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
+    user.otpSentAt = undefined;
+    user.otpRequestCount = 0;
+    user.otpRequestResetTime = undefined;
     await user.save();
 
     // Initialize default FREE subscription
@@ -291,7 +301,7 @@ exports.sendLoginOtp = async (req, res) => {
     }
 
     // Generate login OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     
     user.otpCodeHash = otpHash;
@@ -301,7 +311,8 @@ exports.sendLoginOtp = async (req, res) => {
     
     await user.save();
 
-    await sendEmail({
+    // Send OTP Verification Email asynchronously (no await) to avoid SMTP network delay
+    sendEmail({
       to: user.email,
       subject: 'Your NetPrime Sign-In Code 🍿',
       text: `Your 6-digit one-time sign-in code is: ${otp}. It will expire in 5 minutes.`,
@@ -315,6 +326,8 @@ exports.sendLoginOtp = async (req, res) => {
           <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not request this sign-in, please secure your account.</p>
         </div>
       `
+    }).catch(emailError => {
+      logger.error('Failed to send login verification email asynchronously: %O', emailError);
     });
 
     res.status(200).json(genericSuccess);
@@ -359,6 +372,9 @@ exports.verifyLoginOtp = async (req, res) => {
     user.otpCodeHash = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
+    user.otpSentAt = undefined;
+    user.otpRequestCount = 0;
+    user.otpRequestResetTime = undefined;
     if (!user.isEmailVerified) {
       user.isEmailVerified = true;
     }

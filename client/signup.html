@@ -215,24 +215,28 @@
         
         const submitBtn = signupForm.querySelector('.btn-form-submit');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Registering...';
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating account...';
 
         try {
           await window.NetPrimeState.register(name, email, password);
           
-          // Smooth transition to OTP container
-          formContainer.style.display = 'none';
-          otpContainer.style.display = 'block';
-          document.getElementById('otp-sent-email').textContent = email;
+          submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Preparing verification...';
           
-          // Initialize 6-box input listeners
-          window.initOtpInputs('signup-otp-boxes', async (code) => {
-            await handleSignupOtpVerification(email, code);
-          });
-          
-          // Start 5-minute timer
-          window.startOtpTimer('signup-timer', 'signup-resend-btn', 300);
-          otpInputs[0].focus();
+          setTimeout(() => {
+            // Smooth transition to OTP container
+            formContainer.style.display = 'none';
+            otpContainer.style.display = 'block';
+            document.getElementById('otp-sent-email').textContent = email;
+
+            // Initialize 6-box input listeners
+            window.initOtpInputs('signup-otp-boxes', async (code) => {
+              await handleSignupOtpVerification(email, code);
+            });
+
+            // Start 5-minute timer
+            window.startOtpTimer('signup-timer', 'signup-resend-btn', 300);
+            otpInputs[0].focus();
+          }, 800);
         } catch (err) {
           window.showToastMessage(err.message);
           submitBtn.disabled = false;
