@@ -174,50 +174,14 @@
 
   // Global methods attached to window
   window.showAuthModal = async function(view = 'login') {
-    injectAuthModals();
-    const modal = document.getElementById('auth-modal');
-    if (modal) modal.classList.add('active');
-
-    const container = document.getElementById('clerk-modal-container');
-    if (!container) return;
-
     const isClerkAvailable = await initClerk();
-    if (!isClerkAvailable) {
-      container.innerHTML = `
-        <div style="text-align: center; color: #fff; padding: 30px;">
-          <i class="fa fa-exclamation-triangle fa-3x" style="color: #ffcc00; margin-bottom: 20px;"></i>
-          <h3 style="font-family: var(--font-display); margin-bottom: 12px; font-size: 1.4rem;">Authentication Unconfigured</h3>
-          <p style="font-size: 0.9rem; color: #ccc; line-height: 1.6; max-width: 320px; margin: 0 auto 20px;">
-            Please configure your <code>CLERK_PUBLISHABLE_KEY</code> and <code>CLERK_SECRET_KEY</code> in the <code>server/.env</code> file to enable sign-in and sign-up.
-          </p>
-        </div>
-      `;
-      return;
-    }
+    if (!isClerkAvailable) return;
 
-    container.innerHTML = ''; // Clear spinner
-
-    const redirectUrl = window.location.href;
-    const options = {
-      appearance: {
-        theme: 'dark',
-        variables: {
-          colorPrimary: '#ff007f',
-          colorBackground: '#111111',
-          colorText: '#ffffff'
-        }
-      },
-      signInUrl: '/login.html',
-      signUpUrl: '/signup.html',
-      afterSignInUrl: redirectUrl,
-      afterSignUpUrl: redirectUrl,
-      redirectUrl: redirectUrl
-    };
-
+    const redirectUrl = window.location.origin + '/index.html';
     if (view === 'signup') {
-      window.Clerk.mountSignUp(container, options);
+      window.Clerk.redirectToSignUp({ redirectUrl });
     } else {
-      window.Clerk.mountSignIn(container, options);
+      window.Clerk.redirectToSignIn({ redirectUrl });
     }
   };
 
@@ -234,45 +198,30 @@
 
   async function mountClerkInPage() {
     const container = document.getElementById('clerk-auth-container');
-    if (!container) return;
 
     const isClerkAvailable = await initClerk();
     if (!isClerkAvailable) {
-      container.innerHTML = `
-        <div style="text-align: center; color: #fff; padding: 30px;">
-          <i class="fa fa-exclamation-triangle fa-3x" style="color: #ffcc00; margin-bottom: 20px;"></i>
-          <h3 style="font-family: var(--font-display); margin-bottom: 12px; font-size: 1.4rem;">Authentication Unconfigured</h3>
-          <p style="font-size: 0.9rem; color: #ccc; line-height: 1.6; max-width: 320px; margin: 0 auto 20px;">
-            Please configure your <code>CLERK_PUBLISHABLE_KEY</code> and <code>CLERK_SECRET_KEY</code> in the <code>server/.env</code> file to enable sign-in and sign-up.
-          </p>
-        </div>
-      `;
+      if (container) {
+        container.innerHTML = `
+          <div style="text-align: center; color: #fff; padding: 30px;">
+            <i class="fa fa-exclamation-triangle fa-3x" style="color: #ffcc00; margin-bottom: 20px;"></i>
+            <h3 style="font-family: var(--font-display); margin-bottom: 12px; font-size: 1.4rem;">Authentication Unconfigured</h3>
+            <p style="font-size: 0.9rem; color: #ccc; line-height: 1.6; max-width: 320px; margin: 0 auto 20px;">
+              Please configure your <code>CLERK_PUBLISHABLE_KEY</code> and <code>CLERK_SECRET_KEY</code> in the <code>server/.env</code> file to enable sign-in and sign-up.
+            </p>
+          </div>
+        `;
+      }
       return;
     }
 
-    container.innerHTML = ''; // Clear spinner
+    const redirectUrl = window.location.origin + '/index.html';
     const isSignUp = window.location.pathname.toLowerCase().includes('signup');
-    const redirectUrl = window.location.href;
-    const options = {
-      appearance: {
-        theme: 'dark',
-        variables: {
-          colorPrimary: '#ff007f',
-          colorBackground: '#111111',
-          colorText: '#ffffff'
-        }
-      },
-      signInUrl: '/login.html',
-      signUpUrl: '/signup.html',
-      afterSignInUrl: redirectUrl,
-      afterSignUpUrl: redirectUrl,
-      redirectUrl: redirectUrl
-    };
 
     if (isSignUp) {
-      window.Clerk.mountSignUp(container, options);
+      window.Clerk.redirectToSignUp({ redirectUrl });
     } else {
-      window.Clerk.mountSignIn(container, options);
+      window.Clerk.redirectToSignIn({ redirectUrl });
     }
   }
 
