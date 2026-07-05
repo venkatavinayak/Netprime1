@@ -4,43 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NetPrime - Create Account</title>
-  <script>
-    (function() {
-      const savedTheme = localStorage.getItem('netprime_theme') || 'dark';
-      if (savedTheme === 'light') {
-        document.documentElement.classList.add('light-theme');
-      }
-    })();
-  </script>
-  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <link rel="stylesheet" href="./css/components.css">
 </head>
-<body style="background-color: #000; overflow-x: hidden;">
+<body style="background-color: #000; overflow-x: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh;">
 
-  <div class="auth-page-container">
-    <div class="auth-page-backdrop"></div>
-    
-    <a href="./index.html" class="navbar-brand" style="position: absolute; top: 30px; left: 5%; z-index: 10;">
-      <span>NET<span class="text-magenta">PRIME</span></span>
-    </a>
-
-    <div style="position: absolute; top: 30px; right: 5%; z-index: 10; display: flex; gap: 15px; align-items: center;">
-      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
-        <i id="theme-toggle-icon" class="fa fa-moon"></i>
-      </button>
-    </div>
-
-    <!-- Direct Center Mount for Clerk Sign Up Widget -->
-    <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; width: 100%; padding: 20px; box-sizing: border-box;">
-      <div id="clerk-auth-container" style="width: 100%; display: flex; align-items: center; justify-content: center;">
-        <div class="loading-spinner-wrapper" style="text-align: center; color: #fff;">
-          <i class="fa fa-spinner fa-spin fa-2x" style="color: var(--accent-magenta);"></i>
-          <p style="margin-top: 15px; font-family: var(--font-display); font-size: 0.9rem;">Loading Clerk...</p>
-        </div>
-      </div>
-    </div>
+  <div id="clerk-auth-container" style="text-align: center; color: #fff;">
+    <i class="fa fa-spinner fa-spin fa-2x" style="color: var(--accent-magenta);"></i>
+    <p style="margin-top: 15px; font-family: var(--font-display); font-size: 0.9rem;">Redirecting to Create Account...</p>
   </div>
 
   <script src="./js/state.js"></script>
@@ -48,7 +20,7 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Auto-redirect if already logged in
+      // Auto-redirect if already logged in on the backend
       const checkAndRedirect = (user = null) => {
         const currentUser = user || (window.NetPrimeState ? window.NetPrimeState.currentUser : null);
         if (currentUser && currentUser.email && currentUser.email !== 'guest@netprime.com') {
@@ -60,6 +32,5 @@
       checkAndRedirect();
     });
   </script>
-
 </body>
 </html>

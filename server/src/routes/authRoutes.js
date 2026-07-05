@@ -5,16 +5,8 @@ const { verifyToken } = require('../middleware/authMiddleware');
 const { authLimiter } = require('../middleware/securityMiddleware');
 
 // Auth endpoints
-router.post('/register', authLimiter, authController.register);
-router.post('/verify-otp', authLimiter, authController.verifyOtp);
-router.post('/resend-otp', authLimiter, authController.resendSignupOtp);
-router.post('/login', authLimiter, authController.login);
-router.post('/send-login-otp', authLimiter, authController.sendLoginOtp);
-router.post('/verify-login-otp', authLimiter, authController.verifyLoginOtp);
 router.post('/clerk', authLimiter, authController.clerkLogin);
 router.post('/logout', authController.logout);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
 
 // Authenticated checks
 router.get('/me', verifyToken, authController.getMe);
