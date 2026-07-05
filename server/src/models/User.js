@@ -10,7 +10,7 @@ const WatchHistorySchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String }, // hashed, optional if isGoogleUser is true
+  password: { type: String }, // hashed, optional for Clerk-created users
   avatar: { type: String, default: 'avatar1.png' },
   isEmailVerified: { type: Boolean, default: false },
   emailVerificationToken: { type: String },

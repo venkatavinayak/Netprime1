@@ -231,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetButtonState() {
+      isSubmitting = false;
       submitBtn.disabled = false;
       if (methodType === 'Credit Card') {
         submitBtn.textContent = 'Pay Now';
@@ -258,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = data.url;
     } catch (err) {
       window.showToastMessage(err.message);
+      isSubmitting = false;
       submitBtn.disabled = false;
       submitBtn.textContent = 'Authorize Secure Payment';
     }
@@ -265,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render Success Receipt view
   function showSuccessScreen(gateway, paymentId, price) {
+    isSubmitting = false;
     // Refresh user state in state manager
     window.NetPrimeState.refreshUserState();
 
@@ -292,9 +295,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Bind form submissions to Stripe or Razorpay initiates
+  let isSubmitting = false;
   if (creditCardForm) {
     creditCardForm.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (isSubmitting) return;
+      isSubmitting = true;
       const submitBtn = creditCardForm.querySelector('.btn-form-submit');
       handleStripePayment(submitBtn);
     });
@@ -303,6 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (upiPaymentForm) {
     upiPaymentForm.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (isSubmitting) return;
+      isSubmitting = true;
       const submitBtn = upiPaymentForm.querySelector('.btn-form-submit');
       handleRazorpayPayment(submitBtn, 'UPI Gateway');
     });

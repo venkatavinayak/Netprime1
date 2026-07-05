@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const Payment = require('../models/Payment');
 const logger = require('../utils/logger');
-const { generateInvoicePDF } = require('../utils/pdf');
+const { generateInvoicePDFBuffer } = require('../utils/pdf');
 const { sendEmail } = require('../utils/email');
 
 const planPrices = {
@@ -14,14 +14,41 @@ const planPrices = {
 
 // Shared helper to handle subscription activation db updates and PDF invoicing
 async function activateSubscriptionHelper(userId, plan, transactionId, amountPaidOverride = null) {
+  if (!Object.prototype.hasOwnProperty.call(planPrices, plan)) {
+    throw new Error('Invalid Stripe plan metadata');
+  }
+
   const user = await User.findById(userId);
   if (!user) throw new Error('User not found');
 
-  // Check if payment was already processed
+  // Reserve the provider transaction ID before changing subscription state.
   const existingPayment = await Payment.findOne({ razorpayPaymentId: transactionId });
-  if (existingPayment) {
+  if (existingPayment && existingPayment.status === 'SUCCESS') {
     const existingSub = await Subscription.findOne({ userId: userId });
     return existingSub;
+  }
+
+  const amountPaid = amountPaidOverride !== null ? amountPaidOverride : planPrices[plan];
+  let payment = existingPayment;
+  if (!payment) {
+    try {
+      payment = await Payment.create({
+        userId,
+        plan,
+        amount: amountPaid,
+        currency: 'INR',
+        status: 'PENDING',
+        method: 'Stripe',
+        razorpayOrderId: `stripe_${transactionId}`,
+        razorpayPaymentId: transactionId
+      });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      payment = await Payment.findOne({ razorpayPaymentId: transactionId });
+      if (payment && payment.status === 'SUCCESS') {
+        return Subscription.findOne({ userId });
+      }
+    }
   }
 
   // Calculate expiry duration
@@ -56,19 +83,9 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
   user.isPremium = true;
   await user.save();
 
-  // 3. Save payment details
-  const amountPaid = amountPaidOverride !== null ? amountPaidOverride : planPrices[plan];
-  const payment = new Payment({
-    userId: userId,
-    subscriptionId: subscription._id,
-    plan: plan,
-    amount: amountPaid,
-    currency: 'INR',
-    status: 'SUCCESS',
-    method: 'Stripe',
-    razorpayOrderId: `stripe_sid_${transactionId.substring(0, 16)}_${Date.now()}`,
-    razorpayPaymentId: transactionId
-  });
+  // 3. Mark the reserved payment successful only after activation completes.
+  payment.subscriptionId = subscription._id;
+  payment.status = 'SUCCESS';
   await payment.save();
 
   logger.info('Subscription activated for user %s, plan %s (ID: %s)', user.email, plan, transactionId);
@@ -76,6 +93,7 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
   // 4. Generate & Send Invoice
   try {
     const invoiceLink = `${process.env.CLIENT_URL || 'http://localhost:5000'}/api/payments/invoice/${payment._id}`;
+    const invoicePdf = await generateInvoicePDFBuffer(payment, user);
     await sendEmail({
       to: user.email,
       subject: 'NetPrime Subscription Activated! 🍿',
@@ -110,7 +128,12 @@ async function activateSubscriptionHelper(userId, plan, transactionId, amountPai
           </div>
           <p style="font-size: 0.8rem; color: #888; text-align: center;">Need help? Contact support at +91 800-NET-PRIME</p>
         </div>
-      `
+      `,
+      attachments: [{
+        filename: `NetPrime_Invoice_${payment._id}.pdf`,
+        content: invoicePdf,
+        contentType: 'application/pdf'
+      }]
     });
   } catch (pdfErr) {
     logger.error('Failed to generate or mail invoice PDF inside Stripe helper: %O', pdfErr);
@@ -127,15 +150,25 @@ exports.createCheckoutSession = async (req, res, next) => {
   }
 
   try {
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const priceAmount = planPrices[plan];
 
     // Check if we are running in Developer Mock Mode
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('placeholder')) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('Stripe key is missing or placeholder in production!');
+        return res.status(500).json({ error: 'Stripe payment gateway configuration missing in production.' });
+      }
       logger.info('Stripe key is missing or placeholder. Running in Developer Mock Mode.');
       const mockSessionId = `cs_mock_${Date.now()}`;
+      // Simulate the asynchronous provider callback outside production. The
+      // verification endpoint remains read-only, just as it is for real Stripe.
+      setImmediate(() => {
+        activateSubscriptionHelper(user._id, plan, mockSessionId, priceAmount)
+          .catch(error => logger.error('Developer Stripe mock callback failed: %O', error));
+      });
       return res.json({ 
         url: `${process.env.CLIENT_URL || 'http://localhost:5000'}/profile.html?payment=success&mock=true&session_id=${mockSessionId}&plan=${plan}`
       });
@@ -151,7 +184,7 @@ exports.createCheckoutSession = async (req, res, next) => {
               name: `NetPrime ${plan} Subscription`,
               description: `Access to premium movie streaming catalog for ${plan} plan`,
             },
-            unit_amount: priceAmount,
+            unit_amount: priceAmount * 100, // Stripe requires unit amount in paise (cents) for INR
           },
           quantity: 1,
         },
@@ -173,19 +206,28 @@ exports.createCheckoutSession = async (req, res, next) => {
   }
 };
 
-// Verify checkout session status on success redirect (Fallback if webhook delayed)
+// Verify checkout session status on success redirect (Webhook is source of truth)
 exports.verifySession = async (req, res, next) => {
   const { session_id } = req.body;
   if (!session_id) return res.status(400).json({ error: 'Session ID is required' });
 
   try {
-    // If mock session, activate mock trial/monthly/yearly directly for development convenience
+    // Development mocks are allowed, but verification remains read-only.
     if (session_id.startsWith('cs_mock_')) {
-      const plan = req.body.plan || 'TRIAL';
-      logger.info('Stripe: Verifying mock session %s. Activating plan %s.', session_id, plan);
-
-      const result = await activateSubscriptionHelper(req.userId, plan, session_id);
-      return res.json({ status: 'SUCCESS', subscription: result });
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('Mock Stripe session verification rejected in production.');
+        return res.status(403).json({ error: 'Mock payments are forbidden in production.' });
+      }
+      const mockPayment = await Payment.findOne({
+        razorpayPaymentId: session_id,
+        userId: req.user.id,
+        status: 'SUCCESS'
+      });
+      if (!mockPayment) {
+        return res.status(202).json({ status: 'PROCESSING', message: 'Mock payment callback is processing.' });
+      }
+      const mockSubscription = await Subscription.findOne({ userId: req.user.id });
+      return res.json({ status: 'SUCCESS', subscription: mockSubscription });
     }
 
     const session = await stripe.checkout.sessions.retrieve(session_id);
@@ -198,12 +240,29 @@ exports.verifySession = async (req, res, next) => {
     const stripePaymentId = session.payment_intent || session.id;
 
     // Verify requesting user matches metadata userId
-    if (userId !== req.userId) {
+    if (userId !== req.user.id) {
       return res.status(403).json({ error: 'Unauthorized session owner' });
     }
 
-    const result = await activateSubscriptionHelper(userId, plan, stripePaymentId, session.amount_total / 100);
-    res.json({ status: 'SUCCESS', subscription: result });
+    // Look up the database Payment document to confirm the webhook processed it
+    let payment = null;
+    for (let i = 0; i < 4; i++) {
+      payment = await Payment.findOne({
+        razorpayPaymentId: stripePaymentId,
+        userId: req.user.id,
+        status: 'SUCCESS'
+      });
+      if (payment) break;
+      if (i < 3) await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    if (!payment) {
+      logger.info(`Stripe: verifySession webhook processing pending or payment not captured for session ${session_id}`);
+      return res.status(202).json({ status: 'PROCESSING', message: 'Payment is being processed by Stripe. Please wait...' });
+    }
+
+    const subscription = await Subscription.findOne({ userId: req.user.id });
+    res.json({ status: 'SUCCESS', subscription });
 
   } catch (error) {
     logger.error('Error verifying Stripe session: %O', error);
@@ -219,9 +278,15 @@ exports.handleStripeWebhook = async (req, res, next) => {
   let event;
 
   try {
-    if (!endpointSecret || endpointSecret.includes('placeholder') || !sig) {
-      logger.info('Stripe Webhook Secret not found or signature missing. Bypassing signature verification (Mock Mode).');
-      event = req.body;
+    const signatureUnavailable = !endpointSecret || endpointSecret.includes('placeholder') || !sig;
+    if (signatureUnavailable && process.env.NODE_ENV === 'production') {
+      logger.warn('Unsigned or unconfigured Stripe webhook rejected in production.');
+      return res.status(403).json({ error: 'Valid Stripe webhook signature required.' });
+    }
+
+    if (signatureUnavailable) {
+      logger.info('Stripe webhook signature verification bypassed outside production.');
+      event = JSON.parse(req.body.toString('utf8'));
     } else {
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     }
@@ -232,9 +297,14 @@ exports.handleStripeWebhook = async (req, res, next) => {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const userId = session.metadata.userId;
-    const plan = session.metadata.plan;
+    const userId = session.metadata && session.metadata.userId;
+    const plan = session.metadata && session.metadata.plan;
     const stripePaymentId = session.payment_intent || session.id;
+
+    if (!userId || !Object.prototype.hasOwnProperty.call(planPrices, plan)) {
+      logger.warn('Stripe webhook session has missing or invalid metadata: %s', session.id);
+      return res.status(400).json({ error: 'Invalid checkout metadata.' });
+    }
 
     logger.info('Stripe Webhook: checkout.session.completed received. Session: %s, User: %s, Plan: %s', session.id, userId, plan);
 

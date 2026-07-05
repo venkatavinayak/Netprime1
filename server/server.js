@@ -22,6 +22,8 @@ const errorHandler = require('./src/middleware/errorMiddleware');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const paymentRoutes = require('./src/routes/paymentRoutes');
+const paymentController = require('./src/controllers/paymentController');
+const stripeController = require('./src/controllers/stripeController');
 const adminRoutes = require('./src/routes/adminRoutes');
 
 // Initialize DB & Scheduler
@@ -36,6 +38,11 @@ app.use(helmetConfig);
 app.use(corsConfig);
 app.use(generalLimiter);
 
+// Payment providers sign the exact request bytes. These endpoints must be
+// registered before express.json(), otherwise signature verification is invalid.
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), paymentController.handleWebhook);
+app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), stripeController.handleStripeWebhook);
+
 // Express Parser Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -48,13 +55,10 @@ app.use(xssSanitize);
 // Audit requests in logs through Morgan stream to Winston
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 
-// Public Firebase config payload endpoint (prevents client hardcoding)
-app.get('/api/config/firebase', (req, res) => {
+// Public Clerk config payload endpoint (prevents client hardcoding)
+app.get('/api/config/clerk', (req, res) => {
   res.json({
-    apiKey: process.env.FIREBASE_API_KEY || 'placeholder',
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'placeholder',
-    projectId: process.env.FIREBASE_PROJECT_ID || 'placeholder',
-    appId: process.env.FIREBASE_APP_ID || 'placeholder'
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY || ''
   });
 });
 

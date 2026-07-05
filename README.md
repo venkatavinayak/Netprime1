@@ -6,7 +6,7 @@ NetPrime is a premium, secure, and visually stunning full-stack cinematic movie 
 
 ## 🔗 Live Deployments
 
-*   **Frontend (Netlify)**: [https://netprime-venkatavinayak.netlify.app](https://netprime-venkatavinayak.netlify.app)
+*   **Frontend (Netlify)**: [https://venkat-portfolio-streaming.netlify.app](https://venkat-portfolio-streaming.netlify.app)
 *   **Backend API (Render)**: [https://netprime1.onrender.com](https://netprime1.onrender.com)
 
 ---
@@ -15,7 +15,7 @@ NetPrime is a premium, secure, and visually stunning full-stack cinematic movie 
 
 1. **🔐 Advanced Authentication (Access/Refresh Tokens)**
    * Implements secure JWT Access Tokens (15 min) and Refresh Tokens (30 days) stored inside `HttpOnly` and `SameSite` cross-origin cookies.
-   * Restores sessions automatically and supports Google OAuth/Sign-in natively.
+   * Restores sessions automatically and supports Clerk hosted sign-in/sign-up natively.
    * Enforces email verification before allowing subscription purchases.
 2. **📱 Device Management (Netflix style)**
    * Users can view all active logged-in device sessions (browser, operating system, IP, last active date) in their profile dashboard.
@@ -48,7 +48,7 @@ NETPRIMEORG/
 │   ├── css/                # main.css, components.css
 │   ├── js/
 │   │   ├── state.js        # Global state manager & API redirection wrapper
-│   │   ├── auth.js         # Firebase Auth client login & Google OAuth
+│   │   ├── auth.js         # Clerk client login plus OTP helpers
 │   │   ├── checkout.js     # Stripe Checkout & Razorpay payment bindings
 │   │   ├── main.js         # DOM render engines & theme toggle
 │   │   └── player.js       # Playback syncing & history restore
@@ -63,7 +63,7 @@ NETPRIMEORG/
 │
 └── server/                 # Express BACKEND API (Deployed to Render)
     ├── src/
-    │   ├── config/         # Database, Firebase Admin, and Stripe clients
+    │   ├── config/         # Database, Clerk verification, and Stripe clients
     │   ├── controllers/    # Route controllers (Auth, Payments, Users, Admin)
     │   ├── middleware/     # Auth checks, premium gates, security
     │   ├── models/         # Mongoose schemas (User, Subscription, Payment, Session)
@@ -93,11 +93,13 @@ Copy `server/.env.example` to `server/.env` and update the keys:
 *   `MONGODB_URI`: Local MongoDB port or MongoDB Atlas cluster connection string.
 *   `CLIENT_URL`: URL of the client frontend (e.g. `http://localhost:5000` or Netlify URL).
 *   `ACCESS_TOKEN_SECRET` / `REFRESH_TOKEN_SECRET`: Long cryptographic strings for token signatures.
+*   `CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY`: Clerk application keys for hosted authentication.
+*   Optional `CLERK_ISSUER` / `CLERK_JWKS_URL`: Advanced Clerk token verification overrides if your issuer is custom.
 *   `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`: Developer keys from your Stripe dashboard.
 
 ### 3. Developer Mock Mode Fallbacks
 To facilitate testing without third-party accounts:
-*   **Google OAuth**: If Firebase credentials are omitted, Google authentication falls back to developer mock mode (entering any email simulates login).
+*   **Clerk Auth**: Clerk sign-in/sign-up requires valid Clerk keys in the backend environment.
 *   **Stripe / Razorpay**: If payment gateway credentials are left empty, checking out plans runs in mock mode, automatically activating premium tiers locally.
 *   **Emails**: If SMTP credentials are left empty, verification links and invoice receipts are outputted directly to the backend terminal logs instead of crashing.
 
@@ -131,4 +133,4 @@ Deploy the `server/` folder as a Web Service.
 *   **Root Directory**: Set to `server`.
 *   **Build Command**: `npm install`
 *   **Start Command**: `npm start`
-*   **Environment Variables**: Configure variables matching your `.env` settings (set `NODE_ENV` to `production` and add your `FIREBASE_SERVICE_ACCOUNT_JSON` configuration string).
+*   **Environment Variables**: Configure variables matching your `.env` settings. Set `NODE_ENV=production` and add your Clerk keys (`CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`).

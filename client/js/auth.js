@@ -1,49 +1,112 @@
 /* public/js/auth.js */
 
 (function() {
-  let firebaseInitialized = false;
+  let clerkInitialized = false;
 
-  // Dynamically load Firebase SDK via CDN
-  async function loadFirebaseSDK() {
-    if (window.firebase) return;
+  // Dynamically load ClerkJS via CDN
+  async function loadClerkSDK(publishableKey) {
+    if (window.Clerk) return;
     
+    // Extract frontend API domain from publishable key
+    let frontendApi = '';
+    try {
+      const parts = publishableKey.split('_');
+      // A publishable key splits into ['pk', 'test'/'live', 'base64EncodedDomain']
+      const encodedDomain = parts[2];
+      // Decode base64 and remove the trailing '$' sign
+      frontendApi = atob(encodedDomain).replace(/\$$/, '');
+      console.log('Parsed Clerk Frontend API domain:', frontendApi);
+    } catch (e) {
+      console.error('Failed to parse Clerk Frontend API domain:', e);
+      // Fallback to jsdelivr CDN if parsing fails
+      frontendApi = 'cdn.jsdelivr.net';
+    }
+
     const loadScript = (url) => new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = url;
-      s.onload = resolve;
-      s.onerror = reject;
+      s.async = true;
+      s.crossOrigin = 'anonymous';
+      s.setAttribute('data-clerk-publishable-key', publishableKey);
+      s.onload = () => {
+        console.log('Clerk SDK script tag loaded successfully.');
+        resolve();
+      };
+      s.onerror = (e) => {
+        console.error('Clerk SDK script tag failed to load:', e);
+        reject(new Error('Clerk SDK script load error'));
+      };
       document.head.appendChild(s);
     });
 
-    await loadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-    await loadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js');
+    const cdnUrl = frontendApi === 'cdn.jsdelivr.net'
+      ? 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js'
+      : `https://${frontendApi}/npm/@clerk/clerk-js@latest/dist/clerk.browser.js`;
+
+    console.log('Loading Clerk SDK from URL:', cdnUrl);
+    await loadScript(cdnUrl);
   }
 
-  // Initialize Firebase client instance dynamically
-  async function initFirebase() {
-    if (firebaseInitialized) return true;
+  // Initialize Clerk client instance dynamically
+  async function initClerk() {
+    if (clerkInitialized && window.Clerk && typeof window.Clerk.mountSignIn === 'function') return true;
     try {
-      await loadFirebaseSDK();
-      const res = await fetch('/api/config/firebase');
-      if (!res.ok) throw new Error('Failed to retrieve client credentials');
+      const res = await fetch('/api/config/clerk?_t=' + Date.now());
+      if (!res.ok) throw new Error('Failed to retrieve Clerk credentials');
       
-      const config = await res.json();
-      if (!config.apiKey || config.apiKey === 'placeholder') {
-        throw new Error('Placeholder key detected');
+      const { publishableKey } = await res.json();
+      console.log('initClerk retrieved publishableKey:', publishableKey);
+      
+      if (!publishableKey || publishableKey === 'your_clerk_publishable_key') {
+        throw new Error('CLERK_PUBLISHABLE_KEY is not configured');
       }
 
-      if (firebase.apps.length === 0) {
-        firebase.initializeApp(config);
+      await loadClerkSDK(publishableKey);
+
+      // Wait up to 3 seconds for window.Clerk to be populated on the window object
+      let checks = 0;
+      while (!window.Clerk && checks < 60) {
+        await new Promise(r => setTimeout(r, 50));
+        checks++;
       }
-      firebaseInitialized = true;
+
+      console.log('After script load, typeof window.Clerk:', typeof window.Clerk);
+
+      // If window.Clerk is the constructor (class), instantiate it
+      if (typeof window.Clerk === 'function') {
+        const clerkInstance = new window.Clerk(publishableKey);
+        await clerkInstance.load();
+        window.Clerk = clerkInstance; // Bind instance to window.Clerk
+        console.log('Clerk instance instantiated and loaded successfully.');
+      } else if (window.Clerk && typeof window.Clerk.load === 'function') {
+        await window.Clerk.load();
+        console.log('Clerk instance loaded successfully.');
+      } else {
+        throw new Error('Clerk JS SDK failed to load correctly or timed out.');
+      }
+
+      clerkInitialized = true;
       return true;
     } catch (err) {
-      console.warn('Firebase auth SDK configuration incomplete. Google Login will run in Developer Mock Mode.', err.message);
+      console.error('Clerk initialization failed with error:', err);
       return false;
     }
   }
 
-  // Inject Auth Modals (Login, Signup, Google OAuth) directly into DOM
+  const finalizeClerkLogin = async () => {
+    if (!window.Clerk?.session) return;
+
+    const sessionToken = await window.Clerk.session.getToken();
+    if (!sessionToken) return;
+
+    try {
+      await window.NetPrimeState.loginWithClerk(sessionToken);
+    } catch (err) {
+      console.error('Failed to sync session with NetPrime backend:', err);
+    }
+  };
+
+  // Inject Auth Modals (Clerk Auth Overlay Modal) directly into DOM
   function injectAuthModals() {
     if (document.getElementById('netprime-auth-modals-container')) return;
 
@@ -51,295 +114,22 @@
     container.id = 'netprime-auth-modals-container';
     container.innerHTML = `
       <div id="auth-modal" class="modal-overlay">
-        <div class="modal-content glass">
-          <button id="auth-close-btn" class="modal-close-btn">✕</button>
-          
-          <!-- LOGIN VIEW -->
-          <div id="login-view">
-            <div class="modal-header">
-              <h2>Welcome Back</h2>
-              <p>Enter your details to access NetPrime</p>
+        <div class="modal-content glass" style="max-width: 480px; padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+          <button id="auth-close-btn" class="modal-close-btn" style="z-index: 9999;">✕</button>
+          <div id="clerk-modal-container" style="min-height: 400px; display: flex; align-items: center; justify-content: center; width: 100%;">
+            <div class="loading-spinner-wrapper" style="text-align: center; color: #fff;">
+              <i class="fa fa-spinner fa-spin fa-2x" style="color: var(--accent-magenta);"></i>
+              <p style="margin-top: 15px; font-family: var(--font-display); font-size: 0.9rem;">Loading Clerk...</p>
             </div>
-            <form id="login-form">
-              <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <div class="form-input-wrapper">
-                  <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Password</label>
-                <div class="form-input-wrapper">
-                  <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
-                </div>
-              </div>
-              <div class="form-options">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #ccc; cursor: pointer;">
-                  <input type="checkbox" id="login-remember" style="accent-color: var(--accent-magenta);"> Remember Me
-                </label>
-                <span id="forgot-password-link" style="font-size: 0.85rem; color: var(--accent-magenta); cursor: pointer; hover: underline;">Forgot Password?</span>
-              </div>
-              <button type="submit" class="btn-form-submit" style="margin-top: 15px;">Sign In</button>
-            </form>
-            
-            <div class="oauth-divider" style="margin: 20px 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); line-height: 0.1em;"><span style="background: #111; padding: 0 10px; color: #666; font-size: 0.85rem;">or</span></div>
-            <button type="button" id="google-login-btn" class="btn-form-submit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-              <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.8 2.72v2.24h2.9c1.7-1.57 2.7-3.87 2.7-6.59z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.35 0-4.33-1.59-5.04-3.73H.95v2.3C2.43 15.89 5.5 18 9 18z" fill="#34A853"/><path d="M3.96 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5.01H.95C.35 6.2.01 7.56.01 9s.34 2.8 1.04 3.99l3.01-2.29z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.05C13.46.6 11.43 0 9 0 5.5 0 2.43 2.11.95 5.01l3.01 2.29c.71-2.14 2.69-3.72 5.04-3.72z" fill="#EA4335"/></svg>
-              Sign In with Google
-            </button>
-
-            <p class="form-toggle-link">New to NetPrime? <span id="switch-to-signup" style="color: var(--accent-magenta); cursor: pointer; font-weight: bold;">Sign up now</span></p>
-          </div>
-          
-          <!-- SIGNUP VIEW -->
-          <div id="signup-view" style="display: none;">
-            <div class="modal-header">
-              <h2>Create Account</h2>
-              <p>Join NetPrime and start streaming</p>
-            </div>
-            <form id="signup-form">
-              <div class="form-group">
-                <label class="form-label">Full Name</label>
-                <div class="form-input-wrapper">
-                  <input type="text" id="signup-name" class="form-input" placeholder="John Doe" required>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <div class="form-input-wrapper">
-                  <input type="email" id="signup-email" class="form-input" placeholder="you@example.com" required>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Password</label>
-                <div class="form-input-wrapper">
-                  <input type="password" id="signup-password" class="form-input" placeholder="••••••••" required>
-                </div>
-              </div>
-              <button type="submit" class="btn-form-submit" style="margin-top: 15px;">Create Account</button>
-            </form>
-            
-            <div class="oauth-divider" style="margin: 20px 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); line-height: 0.1em;"><span style="background: #111; padding: 0 10px; color: #666; font-size: 0.85rem;">or</span></div>
-            <button type="button" id="google-signup-btn" class="btn-form-submit" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-              <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.8 2.72v2.24h2.9c1.7-1.57 2.7-3.87 2.7-6.59z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.35 0-4.33-1.59-5.04-3.73H.95v2.3C2.43 15.89 5.5 18 9 18z" fill="#34A853"/><path d="M3.96 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5.01H.95C.35 6.2.01 7.56.01 9s.34 2.8 1.04 3.99l3.01-2.29z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.05C13.46.6 11.43 0 9 0 5.5 0 2.43 2.11.95 5.01l3.01 2.29c.71-2.14 2.69-3.72 5.04-3.72z" fill="#EA4335"/></svg>
-              Sign Up with Google
-            </button>
-
-            <p class="form-toggle-link" style="margin-top: 20px;">Already have an account? <span id="switch-to-login" style="color: var(--accent-magenta); cursor: pointer; font-weight: bold;">Sign in</span></p>
-          </div>
-
-          <!-- FORGOT PASSWORD VIEW -->
-          <div id="forgot-view" style="display: none;">
-            <div class="modal-header">
-              <h2>Forgot Password</h2>
-              <p>Enter email to receive password reset link</p>
-            </div>
-            <form id="forgot-form">
-              <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <div class="form-input-wrapper">
-                  <input type="email" id="forgot-email" class="form-input" placeholder="you@example.com" required>
-                </div>
-              </div>
-              <button type="submit" class="btn-form-submit" style="margin-top: 15px;">Send Reset Link</button>
-            </form>
-            <p class="form-toggle-link" style="margin-top: 20px;">Back to <span id="forgot-back-to-login" style="color: var(--accent-magenta); cursor: pointer; font-weight: bold;">Sign In</span></p>
           </div>
         </div>
       </div>
     `;
 
     document.body.appendChild(container);
-    setupAuthListeners();
-  }
-
-  // Setup click triggers and handlers for the injected modals
-  function setupAuthListeners() {
-    const authModal = document.getElementById('auth-modal');
+    
     const closeBtn = document.getElementById('auth-close-btn');
-    
-    const loginView = document.getElementById('login-view');
-    const signupView = document.getElementById('signup-view');
-    const forgotView = document.getElementById('forgot-view');
-    
-    const switchToSignup = document.getElementById('switch-to-signup');
-    const switchToLogin = document.getElementById('switch-to-login');
-    const forgotPasswordLink = document.getElementById('forgot-password-link');
-    const forgotBackToLogin = document.getElementById('forgot-back-to-login');
-    
-    const loginForm = document.getElementById('login-form');
-    const signupForm = document.getElementById('signup-form');
-    const forgotForm = document.getElementById('forgot-form');
-    const googleLoginBtn = document.getElementById('google-login-btn');
-    const googleSignupBtn = document.getElementById('google-signup-btn');
-
-    closeBtn.addEventListener('click', hideAuthModal);
-
-    switchToSignup.addEventListener('click', () => {
-      loginView.style.display = 'none';
-      signupView.style.display = 'block';
-      forgotView.style.display = 'none';
-    });
-
-    switchToLogin.addEventListener('click', () => {
-      signupView.style.display = 'none';
-      loginView.style.display = 'block';
-      forgotView.style.display = 'none';
-    });
-
-    forgotPasswordLink.addEventListener('click', () => {
-      loginView.style.display = 'none';
-      signupView.style.display = 'none';
-      forgotView.style.display = 'block';
-    });
-
-    forgotBackToLogin.addEventListener('click', () => {
-      forgotView.style.display = 'none';
-      loginView.style.display = 'block';
-      signupView.style.display = 'none';
-    });
-
-    // Email/Password Login Submission
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-      const rememberMe = document.getElementById('login-remember').checked;
-      
-      const submitBtn = loginForm.querySelector('.btn-form-submit');
-      submitBtn.textContent = 'Signing in...';
-      submitBtn.disabled = true;
-
-      try {
-        await window.NetPrimeState.login(email, password, rememberMe);
-        hideAuthModal();
-        showToast('Login successful! Welcome back.');
-        setTimeout(() => {
-          // If admin logs in, redirect to admin console
-          if (email === 'admin@netprime.com') {
-            window.location.href = './admin.html';
-          } else {
-            window.location.reload();
-          }
-        }, 800);
-      } catch (err) {
-        showToast(err.message);
-        submitBtn.textContent = 'Sign In';
-        submitBtn.disabled = false;
-      }
-    });
-
-    // Signup Submission (email verification dispatched)
-    signupForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('signup-name').value;
-      const email = document.getElementById('signup-email').value;
-      const password = document.getElementById('signup-password').value;
-      
-      const submitBtn = signupForm.querySelector('.btn-form-submit');
-      submitBtn.textContent = 'Creating account...';
-      submitBtn.disabled = true;
-
-      try {
-        await window.NetPrimeState.register(name, email, password);
-        hideAuthModal();
-        showToast('Success! A verification link has been sent to your email.');
-      } catch (err) {
-        showToast(err.message);
-        submitBtn.textContent = 'Create Account';
-        submitBtn.disabled = false;
-      }
-    });
-
-    // Forgot Password Submit
-    forgotForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('forgot-email').value;
-      
-      const submitBtn = forgotForm.querySelector('.btn-form-submit');
-      submitBtn.textContent = 'Sending...';
-      submitBtn.disabled = true;
-
-      try {
-        const res = await fetch('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json();
-        hideAuthModal();
-        showToast(data.message || 'If registered, a reset link was sent.');
-      } catch (err) {
-        showToast('Reset request failed. Try again.');
-        submitBtn.textContent = 'Send Reset Link';
-        submitBtn.disabled = false;
-      }
-    });
-
-    // Google Auth Action helper
-    const processGoogleAuth = async (btnElement) => {
-      const isFirebaseAvailable = await initFirebase();
-      
-      if (isFirebaseAvailable) {
-        try {
-          const provider = new firebase.auth.GoogleAuthProvider();
-          const result = await firebase.auth().signInWithPopup(provider);
-          const idToken = await result.user.getIdToken();
-          
-          btnElement.textContent = 'Verifying account...';
-          await window.NetPrimeState.loginWithGoogle(idToken);
-          hideAuthModal();
-          showToast('Google Sign In successful!');
-          const path = window.location.pathname.toLowerCase();
-          const isAuthPage = path.includes('login') || path.includes('signup');
-          if (isAuthPage) {
-            setTimeout(() => window.location.href = './index.html', 800);
-          } else {
-            setTimeout(() => window.location.reload(), 800);
-          }
-        } catch (error) {
-          console.error('Firebase OAuth error:', error);
-          showToast(error.message || 'Google Login failed.');
-          btnElement.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.8 2.72v2.24h2.9c1.7-1.57 2.7-3.87 2.7-6.59z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.91-2.24c-.8.54-1.84.87-3.05.87-2.35 0-4.33-1.59-5.04-3.73H.95v2.3C2.43 15.89 5.5 18 9 18z" fill="#34A853"/><path d="M3.96 10.7c-.18-.54-.28-1.12-.28-1.7s.1-1.16.28-1.7V5.01H.95C.35 6.2.01 7.56.01 9s.34 2.8 1.04 3.99l3.01-2.29z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.05C13.46.6 11.43 0 9 0 5.5 0 2.43 2.11.95 5.01l3.01 2.29c.71-2.14 2.69-3.72 5.04-3.72z" fill="#EA4335"/></svg>
-            Google Sign In
-          `;
-        }
-      } else {
-        const mockEmail = prompt("Developer Mode: Firebase config not found.\nEnter any email to mock verify Google authentication:", "developer@gmail.com");
-        if (mockEmail) {
-          try {
-            btnElement.textContent = 'Verifying mock account...';
-            const mockHeader = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-            const mockPayload = btoa(JSON.stringify({ 
-              email: mockEmail, 
-              name: mockEmail.split('@')[0], 
-              picture: 'avatar3.png' 
-            }));
-            const mockIdToken = `${mockHeader}.${mockPayload}.mocksignature`;
-
-            await window.NetPrimeState.loginWithGoogle(mockIdToken);
-            hideAuthModal();
-            showToast('Mock Google Login successful!');
-            const path = window.location.pathname.toLowerCase();
-            const isAuthPage = path.includes('login') || path.includes('signup');
-            if (isAuthPage) {
-              setTimeout(() => window.location.href = './index.html', 800);
-            } else {
-              setTimeout(() => window.location.reload(), 800);
-            }
-          } catch (error) {
-            showToast('Mock Google Login failed.');
-            btnElement.innerHTML = 'Google Sign In';
-          }
-        }
-      }
-    };
-
-    googleLoginBtn.addEventListener('click', () => processGoogleAuth(googleLoginBtn));
-    if (googleSignupBtn) {
-      googleSignupBtn.addEventListener('click', () => processGoogleAuth(googleSignupBtn));
-    }
+    closeBtn.addEventListener('click', window.hideAuthModal);
   }
 
   // Toast notifications UI utility
@@ -382,226 +172,47 @@
     }, 4500);
   }
 
-  // Handle password reset token queries from URL if present
-  function checkUrlPasswordReset() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetToken = urlParams.get('resetToken');
-    if (resetToken) {
-      const newPassword = prompt("Enter your new secure password:");
-      if (newPassword) {
-        fetch('/api/auth/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: resetToken, password: newPassword })
-        })
-        .then(res => res.json().then(data => ({ status: res.status, data })))
-        .then(({ status, data }) => {
-          if (status === 200) {
-            showToast('Success! Password updated. Log in with your new password.');
-            // Clean up address bar
-            window.history.replaceState({}, document.title, window.location.pathname);
-          } else {
-            showToast(`Reset failed: ${data.error}`);
-          }
-        })
-        .catch(() => showToast('Network connection failed.'));
-      }
-    }
-  }
-
-  // Handle passwordless email magic link sign in if present
-  function checkUrlEmailMagicLink() {
-    const isFirebaseAvailable = firebaseInitialized || (typeof firebase !== 'undefined' && firebase.apps.length > 0);
-    if (!isFirebaseAvailable) return;
-    
-    if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('Please enter your email to confirm sign-in:');
-      }
-      
-      if (email) {
-        showToast('Verifying Magic Link...');
-        
-        firebase.auth().signInWithEmailLink(email, window.location.href)
-          .then(async (result) => {
-            window.localStorage.removeItem('emailForSignIn');
-            
-            // Get the secure ID token
-            const idToken = await result.user.getIdToken();
-            
-            showToast('Magic Link verified. Finalizing...');
-            
-            // Send token to backend
-            await window.NetPrimeState.loginWithGoogle(idToken);
-            
-            showToast('Success! Logged in via Magic Link.');
-            
-            // Clear URL address bar parameters
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-            
-            setTimeout(() => {
-              window.location.href = './index.html';
-            }, 800);
-          })
-          .catch((err) => {
-            console.error('Magic link sign-in error:', err);
-            showToast(err.message || 'Failed to authenticate Magic Link.');
-          });
-      }
-    }
-  }
-
-  // Global helper to send email verification magic link
-  window.sendMagicLink = async function(email, btnElement) {
-    const isFirebaseAvailable = await initFirebase();
-    if (!isFirebaseAvailable) {
-      showToast('Firebase not configured. Magic Link is unavailable.');
-      return;
-    }
-    
-    try {
-      btnElement.disabled = true;
-      const originalText = btnElement.textContent;
-      btnElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending link...';
-      
-      const actionCodeSettings = {
-        url: window.location.href.split('?')[0] + '?emailLink=true',
-        handleCodeInApp: true
-      };
-      
-      await firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
-      
-      showToast('Success! Magic login link sent to your email.');
-      btnElement.textContent = 'Link Sent!';
-    } catch (error) {
-      console.error('Magic link send error:', error);
-      showToast(error.message || 'Failed to send magic link.');
-      btnElement.disabled = false;
-      btnElement.textContent = 'Send Magic Link';
-    }
-  };
-
-  // Bind autofocus, backspace shift, and clipboard paste for 6-box OTP entry
-  window.initOtpInputs = function(containerId, onCompleteCallback) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const inputs = container.querySelectorAll('.otp-digit-input');
-    
-    inputs.forEach((input, index) => {
-      // Input event: Autofocus shift forward
-      input.addEventListener('input', (e) => {
-        input.value = input.value.replace(/[^0-9]/g, '');
-        
-        if (input.value.length === 1) {
-          if (index < inputs.length - 1) {
-            inputs[index + 1].focus();
-          } else {
-            // Code completed
-            const code = Array.from(inputs).map(i => i.value).join('');
-            if (code.length === 6 && typeof onCompleteCallback === 'function') {
-              onCompleteCallback(code);
-            }
-          }
-        }
-      });
-      
-      // Keydown event: Autofocus shift backward on Backspace
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Backspace') {
-          if (input.value === '') {
-            if (index > 0) {
-              inputs[index - 1].focus();
-              inputs[index - 1].value = '';
-            }
-          } else {
-            input.value = '';
-          }
-          e.preventDefault();
-        }
-      });
-      
-      // Paste event: Automatically distribute copied code across all boxes
-      input.addEventListener('paste', (e) => {
-        const pastedData = (e.clipboardData || window.clipboardData).getData('text');
-        const digits = pastedData.replace(/[^0-9]/g, '').slice(0, 6);
-        
-        if (digits.length > 0) {
-          for (let i = 0; i < digits.length; i++) {
-            if (inputs[i]) {
-              inputs[i].value = digits[i];
-            }
-          }
-          const activeIndex = Math.min(digits.length, inputs.length - 1);
-          inputs[activeIndex].focus();
-          
-          const code = Array.from(inputs).map(i => i.value).join('');
-          if (code.length === 6 && typeof onCompleteCallback === 'function') {
-            onCompleteCallback(code);
-          }
-        }
-        e.preventDefault();
-      });
-    });
-  };
-
-  // Start countdown timer for Resend OTP link disable state
-  window.startOtpTimer = function(timerElementId, resendLinkElementId, durationSeconds = 300) {
-    const timerElement = document.getElementById(timerElementId);
-    const resendLink = document.getElementById(resendLinkElementId);
-    if (!timerElement) return;
-    
-    if (window.otpInterval) {
-      clearInterval(window.otpInterval);
-    }
-    
-    let timeLeft = durationSeconds;
-    if (resendLink) {
-      resendLink.style.pointerEvents = 'none';
-      resendLink.style.opacity = '0.5';
-    }
-    
-    const updateDisplay = () => {
-      const mins = Math.floor(timeLeft / 60);
-      const secs = timeLeft % 60;
-      timerElement.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      
-      if (timeLeft <= 0) {
-        clearInterval(window.otpInterval);
-        timerElement.textContent = '00:00';
-        if (resendLink) {
-          resendLink.style.pointerEvents = 'auto';
-          resendLink.style.opacity = '1';
-        }
-      }
-      timeLeft--;
-    };
-    
-    updateDisplay();
-    window.otpInterval = setInterval(updateDisplay, 1000);
-  };
-
   // Global methods attached to window
-  window.showAuthModal = function(view = 'login') {
+  window.showAuthModal = async function(view = 'login') {
     injectAuthModals();
     const modal = document.getElementById('auth-modal');
-    const loginView = document.getElementById('login-view');
-    const signupView = document.getElementById('signup-view');
-    const forgotView = document.getElementById('forgot-view');
+    if (modal) modal.classList.add('active');
 
-    if (view === 'login') {
-      loginView.style.display = 'block';
-      signupView.style.display = 'none';
-      forgotView.style.display = 'none';
-    } else {
-      loginView.style.display = 'none';
-      signupView.style.display = 'block';
-      forgotView.style.display = 'none';
+    const container = document.getElementById('clerk-modal-container');
+    if (!container) return;
+
+    const isClerkAvailable = await initClerk();
+    if (!isClerkAvailable) {
+      container.innerHTML = `
+        <div style="text-align: center; color: #fff; padding: 30px;">
+          <i class="fa fa-exclamation-triangle fa-3x" style="color: #ffcc00; margin-bottom: 20px;"></i>
+          <h3 style="font-family: var(--font-display); margin-bottom: 12px; font-size: 1.4rem;">Authentication Unconfigured</h3>
+          <p style="font-size: 0.9rem; color: #ccc; line-height: 1.6; max-width: 320px; margin: 0 auto 20px;">
+            Please configure your <code>CLERK_PUBLISHABLE_KEY</code> and <code>CLERK_SECRET_KEY</code> in the <code>server/.env</code> file to enable sign-in and sign-up.
+          </p>
+        </div>
+      `;
+      return;
     }
 
-    modal.classList.add('active');
+    container.innerHTML = ''; // Clear spinner
+
+    const options = {
+      appearance: {
+        theme: 'dark',
+        variables: {
+          colorPrimary: '#ff007f',
+          colorBackground: '#111111',
+          colorText: '#ffffff'
+        }
+      }
+    };
+
+    if (view === 'signup') {
+      window.Clerk.mountSignUp(container, options);
+    } else {
+      window.Clerk.mountSignIn(container, options);
+    }
   };
 
   window.hideAuthModal = function() {
@@ -615,26 +226,62 @@
     showToast(msg);
   };
 
-  // Wait for state initialization and automatically inject on DOMContentLoaded
+  async function mountClerkInPage() {
+    const container = document.getElementById('clerk-auth-container');
+    if (!container) return;
+
+    const isClerkAvailable = await initClerk();
+    if (!isClerkAvailable) {
+      container.innerHTML = `
+        <div style="text-align: center; color: #fff; padding: 30px;">
+          <i class="fa fa-exclamation-triangle fa-3x" style="color: #ffcc00; margin-bottom: 20px;"></i>
+          <h3 style="font-family: var(--font-display); margin-bottom: 12px; font-size: 1.4rem;">Authentication Unconfigured</h3>
+          <p style="font-size: 0.9rem; color: #ccc; line-height: 1.6; max-width: 320px; margin: 0 auto 20px;">
+            Please configure your <code>CLERK_PUBLISHABLE_KEY</code> and <code>CLERK_SECRET_KEY</code> in the <code>server/.env</code> file to enable sign-in and sign-up.
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = ''; // Clear spinner
+    const isSignUp = window.location.pathname.toLowerCase().includes('signup');
+    const options = {
+      appearance: {
+        theme: 'dark',
+        variables: {
+          colorPrimary: '#ff007f',
+          colorBackground: '#111111',
+          colorText: '#ffffff'
+        }
+      }
+    };
+
+    if (isSignUp) {
+      window.Clerk.mountSignUp(container, options);
+    } else {
+      window.Clerk.mountSignIn(container, options);
+    }
+  }
+
+  // Automatically setup listeners on page load
   document.addEventListener('DOMContentLoaded', async () => {
     injectAuthModals();
-    checkUrlPasswordReset();
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // Auto-initialize Firebase if landing from a magic link
-    if (urlParams.get('emailLink') === 'true') {
-      await initFirebase();
-      checkUrlEmailMagicLink();
-    }
-    
-    // Auto-open login modal if redirected with showLogin flag
-    if (urlParams.get('showLogin') === 'true') {
-      setTimeout(() => {
-        window.showAuthModal('login');
-        // Clean up URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 400);
+    await mountClerkInPage();
+
+    const isClerkAvailable = await initClerk();
+    if (isClerkAvailable) {
+      // Auto-listen to session changes to sync with NetPrime StateManager
+      window.Clerk.addListener(async ({ session }) => {
+        if (session) {
+          await finalizeClerkLogin();
+        }
+      });
+      
+      // If user is already authenticated on Clerk, sync immediately
+      if (window.Clerk.session) {
+        await finalizeClerkLogin();
+      }
     }
   });
 

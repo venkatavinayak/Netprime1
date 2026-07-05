@@ -10,7 +10,7 @@ logs/
 
 # Environment Config & Private Secrets
 .env
-firebase-service-account.json
+# Service account files (legacy or current)
 *service-account*.json
 
 # Large Video Assets

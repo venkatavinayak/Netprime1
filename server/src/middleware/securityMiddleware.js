@@ -63,8 +63,57 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+const helmetConfig = helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        "https://cdn.jsdelivr.net",
+        "https://clerk.com",
+        "https://cdn.clerk.io",
+        "https://*.clerk.accounts.dev",
+        "https://*.clerk.com",
+        "https://js.stripe.com",
+        "https://checkout.razorpay.com"
+      ],
+      connectSrc: [
+        "'self'",
+        "https://*.clerk.accounts.dev",
+        "https://*.clerk.com",
+        "https://api.clerk.com",
+        "https://api.stripe.com",
+        "https://*.stripe.com",
+        "https://api.razorpay.com",
+        "https://*.razorpay.com"
+      ],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https://images.clerk-cdn.com",
+        "https://img.clerk.com",
+        "https://*.stripe.com",
+        "https://*.razorpay.com"
+      ],
+      frameSrc: [
+        "'self'",
+        "https://*.clerk.accounts.dev",
+        "https://*.clerk.com",
+        "https://js.stripe.com",
+        "https://checkout.razorpay.com"
+      ],
+      workerSrc: ["'self'", "blob:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      mediaSrc: ["'self'", "blob:", "data:", "http://localhost:5000", "https://*.netlify.app", "https://*.render.com"]
+    }
+  }
+});
+
 module.exports = {
-  helmetConfig: helmet(),
+  helmetConfig,
   corsConfig: cors(corsOptions),
   mongoSanitize,
   xssSanitize,

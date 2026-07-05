@@ -53,4 +53,13 @@ const generateInvoicePDF = (payment, user, stream) => {
   doc.end();
 };
 
-module.exports = { generateInvoicePDF };
+const generateInvoicePDFBuffer = (payment, user) => new Promise((resolve, reject) => {
+  const chunks = [];
+  const stream = new (require('stream').PassThrough)();
+  stream.on('data', chunk => chunks.push(chunk));
+  stream.on('end', () => resolve(Buffer.concat(chunks)));
+  stream.on('error', reject);
+  generateInvoicePDF(payment, user, stream);
+});
+
+module.exports = { generateInvoicePDF, generateInvoicePDFBuffer };

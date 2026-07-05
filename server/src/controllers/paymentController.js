@@ -44,6 +44,10 @@ exports.createOrder = async (req, res) => {
       });
       orderId = rzpOrder.id;
     } else {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('Razorpay configuration missing in production!');
+        return res.status(500).json({ error: 'Payment gateway configuration missing in production.' });
+      }
       // Mock mode fallback
       orderId = `order_mock_${crypto.randomBytes(8).toString('hex')}`;
       logger.info(`[MOCK MODE] Generated mock Razorpay order ID: ${orderId}`);
@@ -149,6 +153,13 @@ exports.verifyPayment = async (req, res) => {
   const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
   try {
+    const hasMockCredential = [razorpayOrderId, razorpayPaymentId, razorpaySignature]
+      .some(value => typeof value === 'string' && /(^|_)mock_/i.test(value));
+    if (process.env.NODE_ENV === 'production' && hasMockCredential) {
+      logger.warn('Mock Razorpay credentials rejected in production.');
+      return res.status(403).json({ error: 'Mock payments are forbidden in production.' });
+    }
+
     const payment = await Payment.findOne({ razorpayOrderId, userId: req.user.id });
     if (!payment) {
       return res.status(404).json({ error: 'Transaction order not found.' });
@@ -175,6 +186,10 @@ exports.verifyPayment = async (req, res) => {
         return res.status(400).json({ error: 'Signature verification failed. Potential tampering.' });
       }
     } else {
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('Mock Razorpay verification attempt rejected in production.');
+        return res.status(403).json({ error: 'Mock payments are forbidden in production.' });
+      }
       // Mock mode activation
       logger.info('[MOCK GATEWAY] Confirming mock verification bypass for order.');
       const mockSig = `sig_mock_${crypto.randomBytes(8).toString('hex')}`;
@@ -196,9 +211,10 @@ exports.handleWebhook = async (req, res) => {
 
   try {
     // Verify Webhook Signature
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
     const expectedSig = crypto
       .createHmac('sha256', webhookSecret)
-      .update(JSON.stringify(req.body))
+      .update(rawBody)
       .digest('hex');
 
     if (expectedSig !== rzpSignature && process.env.NODE_ENV === 'production') {
@@ -206,11 +222,12 @@ exports.handleWebhook = async (req, res) => {
       return res.status(400).json({ error: 'Invalid webhook signature.' });
     }
 
-    const event = req.body.event;
+    const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
+    const event = payload.event;
     logger.info(`Received Razorpay webhook event: ${event}`);
 
     if (event === 'payment.captured' || event === 'order.paid') {
-      const entity = req.body.payload.payment ? req.body.payload.payment.entity : req.body.payload.order.entity;
+      const entity = payload.payload.payment ? payload.payload.payment.entity : payload.payload.order.entity;
       const orderId = entity.order_id;
       const paymentId = entity.id;
 

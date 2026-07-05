@@ -24,8 +24,8 @@
     }
     
     return originalFetch(input, init).then(async (response) => {
-      // Intercept login/google auth to store token locally
-      if (typeof input === 'string' && (input.includes('/api/auth/login') || input.includes('/api/auth/google'))) {
+      // Intercept login/Clerk auth to store token locally
+      if (typeof input === 'string' && (input.includes('/api/auth/login') || input.includes('/api/auth/clerk'))) {
         if (response.ok) {
           try {
             const clone = response.clone();
@@ -509,14 +509,10 @@
       this.movies = moviesDatabase;
       this.onInitializedCallbacks = [];
       this.initialized = false;
+      this.pollInterval = null;
       
       // Perform initial check on startup
       this.refreshUserState();
-      
-      // Setup background validation checker (runs every 15 seconds)
-      setInterval(() => {
-        this.refreshUserState();
-      }, 15000);
     }
 
     async refreshUserState() {
@@ -542,6 +538,13 @@
           this.triggerEvent('userChange', this.currentUser);
           this.triggerEvent('wishlistChange', this.wishlist);
 
+          // Start interval polling if not already active
+          if (!this.pollInterval) {
+            this.pollInterval = setInterval(() => {
+              this.refreshUserState();
+            }, 15000);
+          }
+
           // Force page reload if subscription expired and demoted back to free
           if (oldTier && oldTier !== 'FREE' && mappedUser.tier === 'FREE') {
             window.showToastMessage('Your premium subscription validity has completed. Reverted to free tier.');
@@ -549,14 +552,31 @@
               window.location.reload();
             }, 4000);
           }
-        } else {
-          // If unauthorised, clear state to guest
-          if (this.currentUser.username !== 'Guest User') {
-            this.currentUser = GUEST_USER;
-            this.wishlist = [];
-            this.triggerEvent('userChange', this.currentUser);
-            this.triggerEvent('wishlistChange', this.wishlist);
+        } else if (response.status === 401) {
+          // An expired/invalid session is terminal until the user signs in again.
+          if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
           }
+
+          this.currentUser = GUEST_USER;
+          this.wishlist = [];
+          this.triggerEvent('userChange', this.currentUser);
+          this.triggerEvent('wishlistChange', this.wishlist);
+
+          localStorage.clear();
+          sessionStorage.clear();
+          document.cookie.split(";").forEach(c => {
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+          });
+
+          const protectedPages = ['profile.html', 'watch.html', 'admin.html', 'checkout.html'];
+          const currentPage = window.location.pathname.split('/').pop();
+          if (protectedPages.includes(currentPage)) {
+            window.location.href = './index.html?showLogin=true';
+          }
+        } else {
+          console.error(`Failed to sync auth state: server returned ${response.status}`);
         }
       } catch (error) {
         console.error('Failed to sync auth state with backend:', error);
@@ -686,15 +706,15 @@
       }
     }
 
-    async loginWithGoogle(idToken) {
+    async loginWithClerk(sessionToken) {
       try {
-        const res = await fetch('/api/auth/google', {
+        const res = await fetch('/api/auth/clerk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken })
+          body: JSON.stringify({ sessionToken })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Google Authentication failed.');
+        if (!res.ok) throw new Error(data.error || 'Clerk authentication failed.');
         
         await this.refreshUserState();
         return data;
@@ -705,11 +725,19 @@
 
     async logout() {
       try {
+        if (this.pollInterval) {
+          clearInterval(this.pollInterval);
+          this.pollInterval = null;
+        }
         await fetch('/api/auth/logout', { method: 'POST' });
       } catch (error) {
         console.error('Logout error:', error);
       } finally {
-        localStorage.removeItem('netprime_token');
+        localStorage.clear();
+        sessionStorage.clear();
+        document.cookie.split(";").forEach(c => {
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
         this.currentUser = GUEST_USER;
         this.wishlist = [];
         this.triggerEvent('userChange', this.currentUser);

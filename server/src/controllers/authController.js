@@ -4,9 +4,12 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const Session = require('../models/Session');
 const { generateAccessToken, generateRefreshToken } = require('../middleware/authMiddleware');
-const { verifyGoogleToken } = require('../config/firebase');
+const { verifyClerkSession } = require('../config/clerk');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
+
+const normalizeEmail = (email) => (email || '').trim().toLowerCase();
+const getOtpRequestCount = (user) => Number.isFinite(user.otpRequestCount) ? user.otpRequestCount : 0;
 
 // Utility to parse device details from User Agent
 const parseUserAgent = (userAgent) => {
@@ -31,7 +34,8 @@ const parseUserAgent = (userAgent) => {
 
 // Register User (Generates signup verification OTP)
 exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, password } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -42,8 +46,8 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Generate 6-digit OTP code
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP code (cryptographically secure)
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
@@ -61,8 +65,8 @@ exports.register = async (req, res) => {
 
     await user.save();
 
-    // Send OTP Verification Email
-    await sendEmail({
+    // Send OTP Verification Email asynchronously (no await) to avoid SMTP network delay
+    sendEmail({
       to: user.email,
       subject: 'Verify Your NetPrime Account 🍿',
       text: `Your 6-digit verification code is: ${otp}. It will expire in 5 minutes.`,
@@ -77,10 +81,15 @@ exports.register = async (req, res) => {
           <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not sign up for NetPrime, please ignore this email.</p>
         </div>
       `
+    }).catch(emailError => {
+      logger.error('Failed to send verification email asynchronously during registration: %O', emailError);
     });
 
-    logger.info('New user registered, verification OTP dispatched: %s', user.email);
-    res.status(201).json({ message: 'Registration successful! Verification OTP sent to email.', email: user.email });
+    logger.info('New user registered, verification OTP dispatched asynchronously: %s', user.email);
+    res.status(201).json({
+      message: 'Registration successful! Verification OTP sent to email.',
+      email: user.email
+    });
   } catch (error) {
     logger.error('Registration error: %O', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -89,7 +98,7 @@ exports.register = async (req, res) => {
 
 // Resend Signup Verification OTP
 exports.resendSignupOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -111,29 +120,30 @@ exports.resendSignupOtp = async (req, res) => {
       user.otpRequestCount = 0;
       user.otpRequestResetTime = undefined;
     }
+    user.otpRequestCount = getOtpRequestCount(user);
     
     if (user.otpRequestCount >= 3) {
       return res.status(429).json({ error: 'Too many requests. Please try again after 10 minutes.' });
     }
 
-    // Increment request count
-    user.otpRequestCount += 1;
-    if (!user.otpRequestResetTime) {
-      user.otpRequestResetTime = new Date(Date.now() + 10 * 60 * 1000);
-    }
-
     // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     
+    // Save state before email attempt to prevent fast spamming
     user.otpCodeHash = otpHash;
     user.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
     user.otpSentAt = now;
     user.otpAttempts = 0;
+    user.otpRequestCount += 1;
+    if (!user.otpRequestResetTime) {
+      user.otpRequestResetTime = new Date(Date.now() + 10 * 60 * 1000);
+    }
     
     await user.save();
 
-    await sendEmail({
+    // Send OTP Verification Email asynchronously (no await) to avoid SMTP network delay
+    sendEmail({
       to: user.email,
       subject: 'Verify Your NetPrime Account 🍿',
       text: `Your new verification code is: ${otp}. It will expire in 5 minutes.`,
@@ -147,6 +157,8 @@ exports.resendSignupOtp = async (req, res) => {
           <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not request this, please ignore this email.</p>
         </div>
       `
+    }).catch(emailError => {
+      logger.error('Failed to send verification email asynchronously during resend: %O', emailError);
     });
 
     res.status(200).json({ message: 'New verification OTP sent successfully.' });
@@ -158,7 +170,8 @@ exports.resendSignupOtp = async (req, res) => {
 
 // Verify Signup OTP (Completes registration and logs user in)
 exports.verifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const { otp } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -195,6 +208,9 @@ exports.verifyOtp = async (req, res) => {
     user.otpCodeHash = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
+    user.otpSentAt = undefined;
+    user.otpRequestCount = 0;
+    user.otpRequestResetTime = undefined;
     await user.save();
 
     // Initialize default FREE subscription
@@ -255,7 +271,7 @@ exports.verifyOtp = async (req, res) => {
 
 // Send Login Sign-in OTP (Passwordless Login Request)
 exports.sendLoginOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     
@@ -279,6 +295,7 @@ exports.sendLoginOtp = async (req, res) => {
       user.otpRequestCount = 0;
       user.otpRequestResetTime = undefined;
     }
+    user.otpRequestCount = getOtpRequestCount(user);
     
     if (user.otpRequestCount >= 3) {
       return res.status(429).json({ error: 'Too many requests. Please try again after 10 minutes.' });
@@ -291,7 +308,7 @@ exports.sendLoginOtp = async (req, res) => {
     }
 
     // Generate login OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     
     user.otpCodeHash = otpHash;
@@ -301,9 +318,11 @@ exports.sendLoginOtp = async (req, res) => {
     
     await user.save();
 
+    // Login OTP should confirm SMTP dispatch so real users are not sent to
+    // the verification screen when no email was accepted by the provider.
     await sendEmail({
       to: user.email,
-      subject: 'Your NetPrime Sign-In Code 🍿',
+      subject: 'Your NetPrime Sign-In Code',
       text: `Your 6-digit one-time sign-in code is: ${otp}. It will expire in 5 minutes.`,
       html: `
         <div style="font-family: sans-serif; max-width: 500px; padding: 25px; border: 1px solid #ff007f; border-radius: 12px;">
@@ -320,13 +339,14 @@ exports.sendLoginOtp = async (req, res) => {
     res.status(200).json(genericSuccess);
   } catch (error) {
     logger.error('Send Login OTP error: %O', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(503).json({ error: 'Unable to send login OTP email right now. Please try again shortly.' });
   }
 };
 
 // Verify Login OTP (Passwordless Login Completion)
 exports.verifyLoginOtp = async (req, res) => {
-  const { email, otp } = req.body;
+  const { otp } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -359,6 +379,9 @@ exports.verifyLoginOtp = async (req, res) => {
     user.otpCodeHash = undefined;
     user.otpExpires = undefined;
     user.otpAttempts = 0;
+    user.otpSentAt = undefined;
+    user.otpRequestCount = 0;
+    user.otpRequestResetTime = undefined;
     if (!user.isEmailVerified) {
       user.isEmailVerified = true;
     }
@@ -425,7 +448,8 @@ exports.verifyLoginOtp = async (req, res) => {
 
 // Login User
 exports.login = async (req, res) => {
-  const { email, password, rememberMe } = req.body;
+  const { password, rememberMe } = req.body;
+  const email = normalizeEmail(req.body.email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -488,22 +512,25 @@ exports.login = async (req, res) => {
   }
 };
 
-// Google Auth Callback
-exports.googleLogin = async (req, res) => {
-  const { idToken } = req.body;
+// Clerk Auth Callback
+exports.clerkLogin = async (req, res) => {
+  const { sessionToken } = req.body;
   try {
-    // Verify using Firebase admin helper
-    const payload = await verifyGoogleToken(idToken);
+    if (!sessionToken) {
+      return res.status(400).json({ error: 'Missing Clerk session token.' });
+    }
+
+    const profile = await verifyClerkSession(sessionToken);
     
-    let user = await User.findOne({ email: payload.email });
+    let user = await User.findOne({ email: profile.email });
     
     if (!user) {
       // Create user automatically
       user = new User({
-        name: payload.name,
-        email: payload.email,
-        avatar: payload.picture,
-        isEmailVerified: true // Google emails are already pre-verified
+        name: profile.name,
+        email: profile.email,
+        avatar: profile.avatar,
+        isEmailVerified: true // Clerk has already authenticated the account
       });
       await user.save();
 
@@ -515,12 +542,20 @@ exports.googleLogin = async (req, res) => {
         expiryDate: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)
       });
       await subscription.save();
-      logger.info('Registered new Google OAuth account: %s', user.email);
+      logger.info('Registered new Clerk account: %s', user.email);
     }
 
-    // Refresh profile image if Google image changed
-    if (user.avatar !== payload.picture && payload.picture.startsWith('http')) {
-      user.avatar = payload.picture;
+    // Refresh profile details if Clerk changed
+    if (profile.name && user.name !== profile.name) {
+      user.name = profile.name;
+    }
+    if (profile.avatar && user.avatar !== profile.avatar && profile.avatar.startsWith('http')) {
+      user.avatar = profile.avatar;
+    }
+    if (!user.isEmailVerified) {
+      user.isEmailVerified = true;
+    }
+    if (user.isModified()) {
       await user.save();
     }
 
@@ -556,16 +591,16 @@ exports.googleLogin = async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
-    logger.info('Google login successful: %s on %s', user.email, deviceName);
+    logger.info('Clerk login successful: %s on %s', user.email, deviceName);
     res.status(200).json({ 
-      message: 'Google authentication successful!', 
+      message: 'Clerk authentication successful!',
       user: { name: user.name, email: user.email, avatar: user.avatar },
       token: accessToken,
       refreshToken: refreshToken
     });
   } catch (error) {
-    logger.error('Google Auth error: %O', error);
-    res.status(500).json({ error: 'Google Login verification failed.' });
+    logger.error('Clerk Auth error: %O', error);
+    res.status(401).json({ error: 'Clerk authentication failed.' });
   }
 };
 
