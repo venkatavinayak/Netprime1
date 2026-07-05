@@ -205,7 +205,12 @@
           colorBackground: '#111111',
           colorText: '#ffffff'
         }
-      }
+      },
+      signInUrl: '/login.html',
+      signUpUrl: '/signup.html',
+      afterSignInUrl: window.location.origin + '/index.html',
+      afterSignUpUrl: window.location.origin + '/index.html',
+      redirectUrl: window.location.origin + '/index.html'
     };
 
     if (view === 'signup') {
@@ -254,7 +259,12 @@
           colorBackground: '#111111',
           colorText: '#ffffff'
         }
-      }
+      },
+      signInUrl: '/login.html',
+      signUpUrl: '/signup.html',
+      afterSignInUrl: window.location.origin + '/index.html',
+      afterSignUpUrl: window.location.origin + '/index.html',
+      redirectUrl: window.location.origin + '/index.html'
     };
 
     if (isSignUp) {
