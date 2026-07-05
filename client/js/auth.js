@@ -197,6 +197,7 @@
 
     container.innerHTML = ''; // Clear spinner
 
+    const redirectUrl = window.location.href;
     const options = {
       appearance: {
         theme: 'dark',
@@ -208,9 +209,9 @@
       },
       signInUrl: '/login.html',
       signUpUrl: '/signup.html',
-      afterSignInUrl: window.location.origin + '/index.html',
-      afterSignUpUrl: window.location.origin + '/index.html',
-      redirectUrl: window.location.origin + '/index.html'
+      afterSignInUrl: redirectUrl,
+      afterSignUpUrl: redirectUrl,
+      redirectUrl: redirectUrl
     };
 
     if (view === 'signup') {
@@ -251,6 +252,7 @@
 
     container.innerHTML = ''; // Clear spinner
     const isSignUp = window.location.pathname.toLowerCase().includes('signup');
+    const redirectUrl = window.location.href;
     const options = {
       appearance: {
         theme: 'dark',
@@ -262,9 +264,9 @@
       },
       signInUrl: '/login.html',
       signUpUrl: '/signup.html',
-      afterSignInUrl: window.location.origin + '/index.html',
-      afterSignUpUrl: window.location.origin + '/index.html',
-      redirectUrl: window.location.origin + '/index.html'
+      afterSignInUrl: redirectUrl,
+      afterSignUpUrl: redirectUrl,
+      redirectUrl: redirectUrl
     };
 
     if (isSignUp) {
@@ -281,16 +283,20 @@
 
     const isClerkAvailable = await initClerk();
     if (isClerkAvailable) {
-      // Auto-listen to session changes to sync with NetPrime StateManager
       window.Clerk.addListener(async ({ session }) => {
         if (session) {
           await finalizeClerkLogin();
         }
       });
       
-      // If user is already authenticated on Clerk, sync immediately
       if (window.Clerk.session) {
-        await finalizeClerkLogin();
+        window.NetPrimeState.onInitialized(async () => {
+          const currentUser = window.NetPrimeState.getCurrentUser();
+          const isGuest = !currentUser || currentUser.username === 'Guest User';
+          if (isGuest) {
+            await finalizeClerkLogin();
+          }
+        });
       }
     }
   });

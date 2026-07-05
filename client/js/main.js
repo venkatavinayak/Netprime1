@@ -25,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!user || user.username === 'Guest User') {
       actionsContainer.innerHTML = `
-        <button class="btn-outline" onclick="window.location.href='./login.html'">Sign In</button>
-        <button class="btn-premium" onclick="window.location.href='./signup.html'">Join Now</button>
+        <button class="btn-outline" onclick="window.showAuthModal('login')">Sign In</button>
+        <button class="btn-premium" onclick="window.showAuthModal('signup')">Join Now</button>
       `;
       if (profileNavContainer) profileNavContainer.style.display = 'none';
     } else {

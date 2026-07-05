@@ -416,5 +416,16 @@
 
 
   </script>
+  <script>
+    // Trigger auth modal if ?showLogin=true is present in the URL
+    document.addEventListener('DOMContentLoaded', function() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('showLogin') === 'true') {
+        if (window.showAuthModal) {
+          window.showAuthModal('login');
+        }
+      }
+    });
+  </script>
 </body>
 </html>

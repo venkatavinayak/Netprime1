@@ -742,6 +742,15 @@
         this.wishlist = [];
         this.triggerEvent('userChange', this.currentUser);
         this.triggerEvent('wishlistChange', this.wishlist);
+
+        if (window.Clerk && window.Clerk.session) {
+          try {
+            await window.Clerk.signOut();
+          } catch (e) {
+            console.error('Clerk signOut failed:', e);
+          }
+        }
+
         window.location.href = './index.html';
       }
     }

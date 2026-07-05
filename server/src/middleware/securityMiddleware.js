@@ -48,17 +48,30 @@ const generalLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// Authentication rate limiter (max 15 attempts per 15 minutes)
+// Authentication rate limiter (max 30 attempts per 15 minutes)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: 30,
   message: { error: 'Too many authentication attempts, please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
 const corsOptions = {
-  origin: process.env.CLIENT_URL || 'http://localhost:5000',
+  origin: function (origin, callback) {
+    const allowed = [
+      process.env.CLIENT_URL,
+      'http://localhost:5000',
+      'http://localhost:3000',
+      'http://127.0.0.1:5000',
+      'http://127.0.0.1:3000'
+    ].filter(Boolean);
+    if (!origin || allowed.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
