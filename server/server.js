@@ -58,7 +58,7 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 // Public Clerk config payload endpoint (prevents client hardcoding)
 app.get('/api/config/clerk', (req, res) => {
   res.json({
-    publishableKey: process.env.CLERK_PUBLISHABLE_KEY || ''
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || ''
   });
 });
 
