@@ -39,19 +39,21 @@ const xssSanitize = (req, res, next) => {
   next();
 };
 
+const isProd = process.env.NODE_ENV === 'production';
+
 // General system rate limiter (max 100 requests per 15 minutes per IP)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: isProd ? 150 : 999999,
   message: { error: 'Too many requests from this IP, please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// Authentication rate limiter (max 30 attempts per 15 minutes)
+// Authentication rate limiter (max 15 attempts per 15 minutes)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: isProd ? 15 : 999999,
   message: { error: 'Too many authentication attempts, please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false
