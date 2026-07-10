@@ -4,22 +4,22 @@
   async function initClerk() {
     if (clerkReady) return true;
     try {
-      const res = await fetch('/api/config/clerk?_t=' + Date.now());
-      if (!res.ok) throw new Error('Failed to get Clerk key');
-      const { publishableKey } = await res.json();
-      if (!publishableKey || publishableKey === 'your_clerk_publishable_key') return false;
-
-      const parts = publishableKey.split('_');
-      let frontendApi = '';
+      let publishableKey = '';
       try {
-        frontendApi = atob(parts[2]).replace(/\$$/, '');
-      } catch (e) {
-        frontendApi = 'cdn.jsdelivr.net';
+        const res = await fetch('/api/config/clerk?_t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          publishableKey = data.publishableKey;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch Clerk key from backend, using production fallback:', err);
       }
 
-      const scriptUrl = frontendApi === 'cdn.jsdelivr.net'
-        ? 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js'
-        : `https://${frontendApi}/npm/@clerk/clerk-js@latest/dist/clerk.browser.js`;
+      if (!publishableKey || publishableKey === 'your_clerk_publishable_key') {
+        publishableKey = 'pk_test_dGlkeS1zcGFycm93LTY2LmNsZXJrLmFjY291bnRzLmRldiQ';
+      }
+
+      const scriptUrl = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
 
       await new Promise((resolve, reject) => {
         const s = document.createElement('script');
