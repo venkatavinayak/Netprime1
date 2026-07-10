@@ -23,20 +23,30 @@
         publishableKey = 'pk_test_dGlkeS1zcGFycm93LTY2LmNsZXJrLmFjY291bnRzLmRldiQ';
       }
 
-      const scriptUrl = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+      const parts = publishableKey.split('_');
+      let frontendApi = '';
+      try {
+        frontendApi = atob(parts[2]).replace(/\$$/, '');
+      } catch (e) {
+        frontendApi = 'tidy-sparrow-66.clerk.accounts.dev';
+      }
+
+      // Load official ClerkJS v4 from the Clerk CDN (which correctly exposes window.Clerk global constructor)
+      const scriptUrl = `https://${frontendApi}/npm/@clerk/clerk-js@4/dist/clerk.browser.js`;
 
       await new Promise((resolve, reject) => {
         const s = document.createElement('script');
+        s.setAttribute('data-clerk-publishable-key', publishableKey);
         s.src = scriptUrl;
         s.async = true;
         s.crossOrigin = 'anonymous';
         s.onload = resolve;
-        s.onerror = (e) => reject(new Error('Failed to load Clerk JS SDK script from CDN.'));
+        s.onerror = () => reject(new Error(`Failed to load Clerk JS SDK script from: ${scriptUrl}`));
         document.head.appendChild(s);
       });
 
       let checks = 0;
-      while (typeof window.Clerk !== 'function' && checks < 60) {
+      while (typeof window.Clerk !== 'function' && checks < 100) {
         await new Promise(r => setTimeout(r, 50));
         checks++;
       }
@@ -48,7 +58,7 @@
         clerkReady = true;
         return true;
       }
-      throw new Error('Clerk JS SDK script loaded but window.Clerk was not defined.');
+      throw new Error(`Clerk JS SDK script loaded but window.Clerk was not defined (checked for 5s).`);
     } catch (err) {
       console.error('Clerk init failed:', err);
       window.lastClerkError = err;
