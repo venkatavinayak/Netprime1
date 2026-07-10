@@ -1,5 +1,6 @@
 (function() {
   let clerkReady = false;
+  window.lastClerkError = null;
 
   async function initClerk() {
     if (clerkReady) return true;
@@ -10,9 +11,12 @@
         if (res.ok) {
           const data = await res.json();
           publishableKey = data.publishableKey;
+        } else {
+          throw new Error(`Server returned status code ${res.status}`);
         }
       } catch (err) {
         console.warn('Failed to fetch Clerk key from backend, using production fallback:', err);
+        window.lastClerkError = err;
       }
 
       if (!publishableKey || publishableKey === 'your_clerk_publishable_key') {
@@ -27,7 +31,7 @@
         s.async = true;
         s.crossOrigin = 'anonymous';
         s.onload = resolve;
-        s.onerror = reject;
+        s.onerror = (e) => reject(new Error('Failed to load Clerk JS SDK script from CDN.'));
         document.head.appendChild(s);
       });
 
@@ -44,10 +48,10 @@
         clerkReady = true;
         return true;
       }
-      console.warn('Clerk SDK did not become available');
-      return false;
+      throw new Error('Clerk JS SDK script loaded but window.Clerk was not defined.');
     } catch (err) {
       console.error('Clerk init failed:', err);
+      window.lastClerkError = err;
       return false;
     }
   }
@@ -63,18 +67,23 @@
     }
   }
 
-  // Error Banner Renderer
-  window.showClerkErrorBanner = function(message) {
+  // Error Banner Renderer with detailed error log
+  window.showClerkErrorBanner = function(message, error = null) {
     const container = document.getElementById('clerk-auth-container');
     if (container) {
+      let details = '';
+      if (error) {
+        details = `<div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: monospace; font-size: 0.8rem; color: #ff5252; text-align: left; word-break: break-all; border: 1px solid rgba(255, 82, 82, 0.2); line-height: 1.4;"><strong>Error details:</strong><br>${error.message || error}</div>`;
+      }
       container.innerHTML = `
         <div style="background: rgba(255, 0, 127, 0.1); border: 1px solid var(--accent-magenta); border-radius: 12px; padding: 35px; max-width: 460px; margin: 40px auto; text-align: center; font-family: var(--font-display); box-shadow: 0 10px 30px rgba(255, 0, 127, 0.25);">
           <i class="fa fa-exclamation-triangle fa-3x" style="color: var(--accent-magenta); margin-bottom: 20px;"></i>
           <h2 style="color: #fff; font-size: 1.5rem; font-weight: 800; margin-bottom: 12px;">Authentication Offline</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
+          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">
             ${message}
           </p>
-          <button onclick="window.location.reload()" class="btn-premium" style="width: 100%; height: 44px; font-size: 0.95rem; border-radius: 8px;">
+          ${details}
+          <button onclick="window.location.reload()" class="btn-premium" style="width: 100%; height: 44px; font-size: 0.95rem; border-radius: 8px; margin-top: 15px;">
             <i class="fa fa-sync"></i> Retry Connection
           </button>
         </div>
@@ -206,7 +215,7 @@
     } else {
       // Clerk failed to load (e.g. missing keys)
       if (protectedPages.includes(currentPage) || currentPage === 'login.html' || currentPage === 'signup.html') {
-        window.showClerkErrorBanner('Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.');
+        window.showClerkErrorBanner('Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.', window.lastClerkError);
       }
     }
   });
