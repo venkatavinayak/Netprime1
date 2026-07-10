@@ -380,7 +380,7 @@
     function toggleHeroWishlist(movieId, btn) {
       const user = window.NetPrimeState.getCurrentUser();
       if (!user || user.username === 'Guest User') {
-        window.location.href = './login.html';
+        window.showAuthModal('login');
         return;
       }
       

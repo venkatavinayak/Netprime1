@@ -89,21 +89,7 @@
     }
   };
 
-  // Called on login.html / signup.html to redirect to Clerk's hosted pages
-  async function mountClerkInPage() {
-    const ready = await initClerk();
-    if (!ready) return;
-    const redirectUrl = window.location.origin + '/index.html';
-    const isSignUp = window.location.pathname.toLowerCase().includes('signup');
-    if (isSignUp) {
-      window.Clerk.redirectToSignUp({ redirectUrl });
-    } else {
-      window.Clerk.redirectToSignIn({ redirectUrl });
-    }
-  }
-
   document.addEventListener('DOMContentLoaded', async () => {
-    await mountClerkInPage();
     const ready = await initClerk();
     if (ready) {
       window.Clerk.addListener(async ({ session }) => {
