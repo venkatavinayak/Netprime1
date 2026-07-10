@@ -12,17 +12,13 @@
       input = BACKEND_URL + input;
       init.credentials = 'include';
       
-      let token = null;
-      if (window.Clerk && window.Clerk.session) {
+      let token = localStorage.getItem('netprime_token');
+      if (!token && window.Clerk && window.Clerk.session) {
         try {
           token = await window.Clerk.session.getToken();
         } catch (e) {
           console.warn('Failed to retrieve active Clerk session token:', e);
         }
-      }
-      
-      if (!token) {
-        token = localStorage.getItem('netprime_token');
       }
       
       if (token) {

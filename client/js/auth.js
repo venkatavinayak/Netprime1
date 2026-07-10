@@ -147,25 +147,21 @@
       // Setup dynamic auth listener
       window.Clerk.addListener(async ({ session }) => {
         if (session) {
-          await finalizeClerkLogin();
+          const localToken = localStorage.getItem('netprime_token');
+          const localUser = window.NetPrimeState?.currentUser;
+          if (!localToken || !localUser || localUser.username === 'Guest User') {
+            await finalizeClerkLogin();
+          }
         } else {
-          // Sync sign-out to local and backend state
-          const u = window.NetPrimeState?.currentUser;
-          if (u && u.username !== 'Guest User') {
+          const localToken = localStorage.getItem('netprime_token');
+          const localUser = window.NetPrimeState?.currentUser;
+          if (localToken || (localUser && localUser.username !== 'Guest User')) {
             await window.NetPrimeState.logout();
           }
         }
       });
 
-      if (window.Clerk.session) {
-        // Logged in with Clerk - finalize local sync
-        window.NetPrimeState.onInitialized(async () => {
-          const u = window.NetPrimeState.currentUser;
-          if (!u || u.username === 'Guest User') {
-            await finalizeClerkLogin();
-          }
-        });
-      } else {
+      if (!window.Clerk.session) {
         // Logged out / guest user
         const params = new URLSearchParams(window.location.search);
         const redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
