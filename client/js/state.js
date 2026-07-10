@@ -732,6 +732,10 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Clerk authentication failed.');
         
+        if (data.token) {
+          localStorage.setItem('netprime_token', data.token);
+        }
+        
         await this.refreshUserState();
         return data;
       } catch (err) {
