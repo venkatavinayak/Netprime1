@@ -7,12 +7,24 @@
     : 'https://netprime1.onrender.com'; // Point to live Render backend in production
 
   const originalFetch = window.fetch;
-  window.fetch = function(input, init = {}) {
+  window.fetch = async function(input, init = {}) {
     if (typeof input === 'string' && input.startsWith('/api/')) {
       input = BACKEND_URL + input;
       init.credentials = 'include';
       
-      const token = localStorage.getItem('netprime_token');
+      let token = null;
+      if (window.Clerk && window.Clerk.session) {
+        try {
+          token = await window.Clerk.session.getToken();
+        } catch (e) {
+          console.warn('Failed to retrieve active Clerk session token:', e);
+        }
+      }
+      
+      if (!token) {
+        token = localStorage.getItem('netprime_token');
+      }
+      
       if (token) {
         if (!init.headers) init.headers = {};
         if (init.headers instanceof Headers) {
@@ -23,21 +35,21 @@
       }
     }
     
-    return originalFetch(input, init).then(async (response) => {
-      // Intercept login/Clerk auth to store token locally
-      if (typeof input === 'string' && (input.includes('/api/auth/login') || input.includes('/api/auth/clerk'))) {
-        if (response.ok) {
-          try {
-            const clone = response.clone();
-            const data = await clone.json();
-            if (data.token) {
-              localStorage.setItem('netprime_token', data.token);
-            }
-          } catch (e) {}
-        }
+    const response = await originalFetch(input, init);
+    
+    // Intercept login/Clerk auth to store token locally
+    if (typeof input === 'string' && (input.includes('/api/auth/login') || input.includes('/api/auth/clerk'))) {
+      if (response.ok) {
+        try {
+          const clone = response.clone();
+          const data = await clone.json();
+          if (data.token) {
+            localStorage.setItem('netprime_token', data.token);
+          }
+        } catch (e) {}
       }
-      return response;
-    });
+    }
+    return response;
   };
 
   // Expose helper to fetch configured API URL on other modules
@@ -570,10 +582,14 @@
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
           });
 
-          const protectedPages = ['profile.html', 'watch.html', 'admin.html', 'checkout.html'];
+          const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
           const currentPage = window.location.pathname.split('/').pop();
           if (protectedPages.includes(currentPage)) {
-            window.location.href = './index.html?showLogin=true';
+            if (window.showAuthModal) {
+              window.showAuthModal('login', window.location.href);
+            } else {
+              window.location.href = './index.html?showLogin=true&redirect=' + encodeURIComponent(window.location.href);
+            }
           }
         } else {
           console.error(`Failed to sync auth state: server returned ${response.status}`);

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPrime Dashboard - Redirecting...</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+<body style="background-color: #000; overflow-x: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh;">
+
+  <div id="clerk-auth-container" style="text-align: center; color: #fff;">
+    <i class="fa fa-spinner fa-spin fa-2x" style="color: var(--accent-magenta);"></i>
+    <p style="margin-top: 15px; font-family: var(--font-display); font-size: 0.95rem; letter-spacing: 0.5px;">Loading Dashboard...</p>
+  </div>
+
+  <script src="./js/state.js"></script>
+  <script src="./js/auth.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.NetPrimeState.onInitialized(() => {
+        const user = window.NetPrimeState.currentUser;
+        if (user && user.email === 'admin@netprime.com') {
+          window.location.replace('./admin.html');
+        } else {
+          window.location.replace('./profile.html');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

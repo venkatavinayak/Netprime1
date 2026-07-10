@@ -1,8 +1,14 @@
 const jwt = require('jsonwebtoken');
+const { verifyToken: verifyClerkToken, createClerkClient } = require('@clerk/backend');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const Session = require('../models/Session');
 const logger = require('../utils/logger');
+
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+  publishableKey: process.env.CLERK_PUBLISHABLE_KEY
+});
 
 // Generate access token (7 days for cross-origin local storage fallback)
 const generateAccessToken = (user) => {
@@ -22,7 +28,7 @@ const generateRefreshToken = (user) => {
   );
 };
 
-// Main authentication check middleware
+// Main authentication check middleware (supports Clerk session tokens & native JWT fallbacks)
 const verifyToken = async (req, res, next) => {
   let accessToken = req.cookies.accessToken;
 
@@ -35,16 +41,91 @@ const verifyToken = async (req, res, next) => {
     return handleRefreshFallback(req, res, next);
   }
 
+  // Try Clerk verification first
   try {
-    const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET || 'netprime_access_secret_token_15m_auth_secret_key_987654321');
-    req.user = decoded;
-    return next();
-  } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return handleRefreshFallback(req, res, next);
+    const clerkPayload = await verifyClerkToken(accessToken, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+      publishableKey: process.env.CLERK_PUBLISHABLE_KEY
+    });
+
+    if (clerkPayload && clerkPayload.sub) {
+      const clerkId = clerkPayload.sub;
+      let user = await User.findOne({ clerkId });
+
+      if (!user) {
+        // Fetch profile details from Clerk to automatically register/sync user
+        try {
+          const clerkUser = await clerkClient.users.getUser(clerkId);
+          const primaryEmail = clerkUser.emailAddresses?.find(
+            email => email.id === clerkUser.primaryEmailAddressId
+          ) || clerkUser.emailAddresses?.[0];
+
+          const email = primaryEmail?.emailAddress?.toLowerCase();
+          if (!email) {
+            return res.status(400).json({ error: 'Clerk user has no email address.' });
+          }
+
+          // Check if user already exists by email
+          user = await User.findOne({ email });
+          if (user) {
+            user.clerkId = clerkId;
+            user.lastLogin = new Date();
+            await user.save();
+            logger.info(`Linked existing user email ${email} to Clerk ID ${clerkId}`);
+          } else {
+            const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ')
+              || clerkUser.username
+              || email.split('@')[0];
+
+            user = new User({
+              clerkId,
+              name,
+              email,
+              avatar: clerkUser.imageUrl || 'avatar1.png',
+              isEmailVerified: true,
+              lastLogin: new Date()
+            });
+            await user.save();
+
+            // Save default FREE subscription
+            const subscription = new Subscription({
+              userId: user._id,
+              plan: 'FREE',
+              status: 'NONE',
+              expiryDate: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)
+            });
+            await subscription.save();
+            logger.info(`Created new synced Clerk user record: ${email}`);
+          }
+        } catch (syncErr) {
+          logger.error('Failed to sync Clerk user in verifyToken middleware: %O', syncErr);
+          return res.status(401).json({ error: 'Clerk user database sync failed.' });
+        }
+      } else {
+        // Sync last login time
+        const now = new Date();
+        if (!user.lastLogin || (now - user.lastLogin > 5 * 60 * 1000)) { // limit db writes to once every 5 minutes
+          user.lastLogin = now;
+          await user.save();
+        }
+      }
+
+      req.user = { id: user._id, email: user.email, name: user.name, clerkId: user.clerkId };
+      return next();
     }
-    logger.warn('Access token verification failed: %s', err.message);
-    return res.status(401).json({ error: 'Unauthorized. Invalid session.' });
+  } catch (clerkErr) {
+    // If Clerk token verification fails, fall back to native JWT validation
+    try {
+      const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET || 'netprime_access_secret_token_15m_auth_secret_key_987654321');
+      req.user = decoded;
+      return next();
+    } catch (jwtErr) {
+      if (jwtErr.name === 'TokenExpiredError') {
+        return handleRefreshFallback(req, res, next);
+      }
+      logger.warn('Token verification failed (Clerk: %s, Native JWT: %s)', clerkErr.message, jwtErr.message);
+      return res.status(401).json({ error: 'Unauthorized. Invalid session.' });
+    }
   }
 };
 
@@ -85,7 +166,7 @@ const handleRefreshFallback = async (req, res, next) => {
       maxAge: 15 * 60 * 1000 // 15 mins
     });
 
-    req.user = { id: user._id, email: user.email, name: user.name };
+    req.user = { id: user._id, email: user.email, name: user.name, clerkId: user.clerkId };
     
     // Update session last seen timestamp
     session.lastSeen = new Date();
@@ -149,5 +230,9 @@ module.exports = {
   checkPremium,
   isAdmin,
   generateAccessToken,
-  generateRefreshToken
+  generateRefreshToken,
+  // Requirement aliases
+  requireAuth: verifyToken,
+  requirePremium: checkPremium,
+  requireAdmin: isAdmin
 };

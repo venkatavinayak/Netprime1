@@ -63,6 +63,25 @@
     }
   }
 
+  // Error Banner Renderer
+  window.showClerkErrorBanner = function(message) {
+    const container = document.getElementById('clerk-auth-container');
+    if (container) {
+      container.innerHTML = `
+        <div style="background: rgba(255, 0, 127, 0.1); border: 1px solid var(--accent-magenta); border-radius: 12px; padding: 35px; max-width: 460px; margin: 40px auto; text-align: center; font-family: var(--font-display); box-shadow: 0 10px 30px rgba(255, 0, 127, 0.25);">
+          <i class="fa fa-exclamation-triangle fa-3x" style="color: var(--accent-magenta); margin-bottom: 20px;"></i>
+          <h2 style="color: #fff; font-size: 1.5rem; font-weight: 800; margin-bottom: 12px;">Authentication Offline</h2>
+          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px;">
+            ${message}
+          </p>
+          <button onclick="window.location.reload()" class="btn-premium" style="width: 100%; height: 44px; font-size: 0.95rem; border-radius: 8px;">
+            <i class="fa fa-sync"></i> Retry Connection
+          </button>
+        </div>
+      `;
+    }
+  };
+
   // Toast notification utility
   window.showToastMessage = function(message) {
     let toast = document.getElementById('netprime-toast');
@@ -77,29 +96,117 @@
     setTimeout(() => { toast.style.transform = 'translateY(100px)'; toast.style.opacity = '0'; }, 4500);
   };
 
-  // Redirect-based auth — used by navbar buttons
-  window.showAuthModal = async function(view = 'sign-in') {
-    const ready = await initClerk();
-    if (!ready) return;
-    const redirectUrl = window.location.origin + '/index.html';
-    if (view === 'sign-up' || view === 'signup') {
-      window.Clerk.redirectToSignUp({ redirectUrl });
-    } else {
-      window.Clerk.redirectToSignIn({ redirectUrl });
+  // Redirect to custom local embedded Sign-In / Sign-Up pages
+  window.showAuthModal = async function(view = 'sign-in', customRedirectUrl = null) {
+    let redirectUrl = customRedirectUrl;
+    if (!redirectUrl) {
+      const params = new URLSearchParams(window.location.search);
+      redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
     }
+    
+    const url = (view === 'sign-up' || view === 'signup') 
+      ? `./signup.html?redirect=${encodeURIComponent(redirectUrl)}`
+      : `./login.html?redirect=${encodeURIComponent(redirectUrl)}`;
+    
+    window.location.href = url;
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
     const ready = await initClerk();
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+
     if (ready) {
+      // Setup dynamic auth listener
       window.Clerk.addListener(async ({ session }) => {
-        if (session) await finalizeClerkLogin();
+        if (session) {
+          await finalizeClerkLogin();
+        } else {
+          // Sync sign-out to local and backend state
+          const u = window.NetPrimeState?.currentUser;
+          if (u && u.username !== 'Guest User') {
+            await window.NetPrimeState.logout();
+          }
+        }
       });
+
       if (window.Clerk.session) {
+        // Logged in with Clerk - finalize local sync
         window.NetPrimeState.onInitialized(async () => {
           const u = window.NetPrimeState.currentUser;
-          if (!u || u.username === 'Guest User') await finalizeClerkLogin();
+          if (!u || u.username === 'Guest User') {
+            await finalizeClerkLogin();
+          }
         });
+      } else {
+        // Logged out / guest user
+        const params = new URLSearchParams(window.location.search);
+        const redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
+
+        if (protectedPages.includes(currentPage)) {
+          window.showAuthModal('login', window.location.href);
+        } else if (currentPage === 'login.html') {
+          // Mount Clerk Sign-In component directly on the page
+          const container = document.getElementById('clerk-auth-container');
+          if (container) {
+            container.innerHTML = ''; // clear loading spinner
+            window.Clerk.mountSignIn(container, {
+              signUpUrl: './signup.html',
+              afterSignInUrl: redirectUrl,
+              appearance: {
+                variables: {
+                  colorPrimary: '#ff007f',
+                  colorBackground: '#121212',
+                  colorText: '#ffffff',
+                  colorTextSecondary: '#a0a0a0',
+                  colorInputBackground: '#1d1d1d',
+                  colorInputText: '#ffffff',
+                  colorButtonText: '#ffffff'
+                },
+                elements: {
+                  card: {
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+                    background: 'rgba(18, 18, 18, 0.95)'
+                  }
+                }
+              }
+            });
+          }
+        } else if (currentPage === 'signup.html') {
+          // Mount Clerk Sign-Up component directly on the page
+          const container = document.getElementById('clerk-auth-container');
+          if (container) {
+            container.innerHTML = ''; // clear loading spinner
+            window.Clerk.mountSignUp(container, {
+              signInUrl: './login.html',
+              afterSignUpUrl: redirectUrl,
+              appearance: {
+                variables: {
+                  colorPrimary: '#ff007f',
+                  colorBackground: '#121212',
+                  colorText: '#ffffff',
+                  colorTextSecondary: '#a0a0a0',
+                  colorInputBackground: '#1d1d1d',
+                  colorInputText: '#ffffff',
+                  colorButtonText: '#ffffff'
+                },
+                elements: {
+                  card: {
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+                    background: 'rgba(18, 18, 18, 0.95)'
+                  }
+                }
+              }
+            });
+          }
+        }
+      }
+    } else {
+      // Clerk failed to load (e.g. missing keys)
+      if (protectedPages.includes(currentPage) || currentPage === 'login.html' || currentPage === 'signup.html') {
+        window.showClerkErrorBanner('Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.');
       }
     }
   });

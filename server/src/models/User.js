@@ -8,6 +8,7 @@ const WatchHistorySchema = new mongoose.Schema({
 });
 
 const UserSchema = new mongoose.Schema({
+  clerkId: { type: String, unique: true, sparse: true },
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String }, // hashed, optional for Clerk-created users
@@ -23,6 +24,7 @@ const UserSchema = new mongoose.Schema({
   otpAttempts: { type: Number, default: 0 },
   otpRequestCount: { type: Number, default: 0 },
   otpRequestResetTime: { type: Date },
+  lastLogin: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

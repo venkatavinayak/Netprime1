@@ -522,11 +522,21 @@ exports.clerkLogin = async (req, res) => {
 
     const profile = await verifyClerkSession(sessionToken);
     
-    let user = await User.findOne({ email: profile.email });
+    // Search MongoDB using Clerk User ID
+    let user = await User.findOne({ clerkId: profile.clerkUserId });
+    
+    if (!user) {
+      // Search by email to link existing local accounts to Clerk
+      user = await User.findOne({ email: profile.email });
+      if (user) {
+        user.clerkId = profile.clerkUserId;
+      }
+    }
     
     if (!user) {
       // Create user automatically
       user = new User({
+        clerkId: profile.clerkUserId,
         name: profile.name,
         email: profile.email,
         avatar: profile.avatar,
@@ -545,19 +555,16 @@ exports.clerkLogin = async (req, res) => {
       logger.info('Registered new Clerk account: %s', user.email);
     }
 
-    // Refresh profile details if Clerk changed
-    if (profile.name && user.name !== profile.name) {
-      user.name = profile.name;
-    }
-    if (profile.avatar && user.avatar !== profile.avatar && profile.avatar.startsWith('http')) {
+    // Refresh profile details on every login to ensure database synchronization
+    user.name = profile.name;
+    user.email = profile.email;
+    if (profile.avatar && profile.avatar.startsWith('http')) {
       user.avatar = profile.avatar;
     }
-    if (!user.isEmailVerified) {
-      user.isEmailVerified = true;
-    }
-    if (user.isModified()) {
-      await user.save();
-    }
+    user.lastLogin = new Date();
+    user.isEmailVerified = true;
+    
+    await user.save();
 
     // Generate tokens
     const accessToken = generateAccessToken(user);
@@ -703,7 +710,16 @@ exports.getMe = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const subscription = await Subscription.findOne({ userId: user._id });
+    let subscription = await Subscription.findOne({ userId: user._id });
+    
+    // Auto-expire and demote active but expired subscriptions
+    if (subscription && subscription.plan !== 'FREE' && subscription.expiryDate && subscription.expiryDate <= new Date()) {
+      subscription.plan = 'FREE';
+      subscription.status = 'EXPIRED';
+      await subscription.save();
+      logger.info(`Subscription expired for user: ${user.email}, reverted to FREE`);
+    }
+
     const sessionCount = await Session.countDocuments({ userId: user._id });
 
     res.status(200).json({
