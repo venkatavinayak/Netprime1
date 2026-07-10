@@ -31,7 +31,6 @@
         frontendApi = 'tidy-sparrow-66.clerk.accounts.dev';
       }
 
-      // Load official ClerkJS v4 from the Clerk CDN (which correctly exposes window.Clerk global constructor)
       const scriptUrl = `https://${frontendApi}/npm/@clerk/clerk-js@4/dist/clerk.browser.js`;
 
       await new Promise((resolve, reject) => {
@@ -45,20 +44,29 @@
         document.head.appendChild(s);
       });
 
+      // Wait for window.Clerk to be defined (as either a function or an object)
       let checks = 0;
-      while (typeof window.Clerk !== 'function' && checks < 100) {
+      while (!window.Clerk && checks < 150) {
         await new Promise(r => setTimeout(r, 50));
         checks++;
       }
 
-      if (typeof window.Clerk === 'function') {
-        const instance = new window.Clerk(publishableKey);
-        await instance.load();
-        window.Clerk = instance;
+      if (window.Clerk) {
+        if (typeof window.Clerk === 'function') {
+          // If it is the constructor class, instantiate and load it
+          const instance = new window.Clerk(publishableKey);
+          await instance.load();
+          window.Clerk = instance;
+        } else if (typeof window.Clerk === 'object') {
+          // If it is already instantiated (Clerk wrapper object), just trigger load
+          if (typeof window.Clerk.load === 'function') {
+            await window.Clerk.load();
+          }
+        }
         clerkReady = true;
         return true;
       }
-      throw new Error(`Clerk JS SDK script loaded but window.Clerk was not defined (checked for 5s).`);
+      throw new Error(`Clerk JS SDK script loaded but window.Clerk was undefined (checked for 7.5s). typeof window.Clerk = ${typeof window.Clerk}`);
     } catch (err) {
       console.error('Clerk init failed:', err);
       window.lastClerkError = err;
