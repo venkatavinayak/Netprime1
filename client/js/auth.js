@@ -144,26 +144,108 @@
     }
   };
 
-  // Redirect to custom local embedded Sign-In / Sign-Up pages
+  // Open Clerk inside a responsive modal on the current page to avoid navigation lag
   window.showAuthModal = async function(view = 'sign-in', customRedirectUrl = null) {
-    if (window.showPageActionLoader) {
-      window.showPageActionLoader(view === 'signup' || view === 'sign-up' ? 'Preparing Registration...' : 'Securing Authentication...');
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    
+    // If we are already on login or signup pages, we don't open modals
+    if (currentPage === 'login.html' || currentPage === 'signup.html') {
+      return;
     }
 
-    let redirectUrl = customRedirectUrl;
-    if (!redirectUrl) {
-      const params = new URLSearchParams(window.location.search);
-      redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
+    let overlay = document.getElementById('clerk-modal-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'clerk-modal-overlay';
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal-content glass" style="max-width: 480px; padding: 0; background: transparent; border: none; box-shadow: none; display: flex; justify-content: center; align-items: center; position: relative;">
+          <button id="clerk-modal-close-btn" class="modal-close-btn" style="position: absolute; top: -35px; right: 10px; z-index: 10001; color: #fff; font-size: 1.5rem; background: none; border: none; cursor: pointer; transition: transform 0.2s ease;">✕</button>
+          <div id="clerk-modal-mount-container" style="width: 100%; min-height: 450px; display: flex; align-items: center; justify-content: center;"></div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const closeBtn = overlay.querySelector('#clerk-modal-close-btn');
+      closeBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
+        if (mountContainer) mountContainer.innerHTML = '';
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          overlay.classList.remove('active');
+          const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
+          if (mountContainer) mountContainer.innerHTML = '';
+        }
+      });
     }
-    
-    const url = (view === 'sign-up' || view === 'signup') 
-      ? `./signup.html?redirect=${encodeURIComponent(redirectUrl)}`
-      : `./login.html?redirect=${encodeURIComponent(redirectUrl)}`;
-    
-    // Give animation 300ms to fade in before page navigation
-    setTimeout(() => {
-      window.location.href = url;
-    }, 300);
+
+    const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
+    mountContainer.innerHTML = '<div class="loader-spinner"></div>';
+    overlay.classList.add('active');
+
+    // Wait until Clerk is ready
+    if (window.clerkReadyPromise) {
+      await window.clerkReadyPromise;
+    }
+
+    if (!window.Clerk) {
+      mountContainer.innerHTML = '<p style="color: #ff5252; text-align: center; padding: 20px; font-family: sans-serif;">Clerk authentication is currently offline. Please try again later.</p>';
+      return;
+    }
+
+    mountContainer.innerHTML = ''; // Clear loader
+    const redirectUrl = customRedirectUrl || window.location.href;
+
+    if (view === 'sign-up' || view === 'signup') {
+      window.Clerk.mountSignUp(mountContainer, {
+        signInUrl: './login.html',
+        afterSignUpUrl: redirectUrl,
+        appearance: {
+          variables: {
+            colorPrimary: '#ff007f',
+            colorBackground: '#121212',
+            colorText: '#ffffff',
+            colorTextSecondary: '#a0a0a0',
+            colorInputBackground: '#1d1d1d',
+            colorInputText: '#ffffff',
+            colorButtonText: '#ffffff'
+          },
+          elements: {
+            card: {
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+              background: 'rgba(18, 18, 18, 0.95)'
+            }
+          }
+        }
+      });
+    } else {
+      window.Clerk.mountSignIn(mountContainer, {
+        signUpUrl: './signup.html',
+        afterSignInUrl: redirectUrl,
+        appearance: {
+          variables: {
+            colorPrimary: '#ff007f',
+            colorBackground: '#121212',
+            colorText: '#ffffff',
+            colorTextSecondary: '#a0a0a0',
+            colorInputBackground: '#1d1d1d',
+            colorInputText: '#ffffff',
+            colorButtonText: '#ffffff'
+          },
+          elements: {
+            card: {
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+              background: 'rgba(18, 18, 18, 0.95)'
+            }
+          }
+        }
+      });
+    }
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -181,6 +263,14 @@
             await finalizeClerkLogin();
           } else {
             await window.NetPrimeState.refreshUserState();
+          }
+
+          // Close modal overlay on successful login
+          const overlay = document.getElementById('clerk-modal-overlay');
+          if (overlay) {
+            overlay.classList.remove('active');
+            const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
+            if (mountContainer) mountContainer.innerHTML = '';
           }
         } else {
           const localToken = localStorage.getItem('netprime_token');

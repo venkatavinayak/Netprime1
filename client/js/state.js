@@ -816,9 +816,14 @@
     }
 
     async logout() {
-      if (window.showPageActionLoader) {
+      const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+      const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+      const isProtected = protectedPages.includes(currentPage);
+
+      if (isProtected && window.showPageActionLoader) {
         window.showPageActionLoader('Logging out securely...');
       }
+
       try {
         if (this.pollInterval) {
           clearInterval(this.pollInterval);
@@ -846,10 +851,11 @@
           }
         }
 
-        // Slight delay so the loader can be seen and transitions occur smoothly
-        setTimeout(() => {
-          window.location.href = './index.html';
-        }, 300);
+        if (isProtected) {
+          setTimeout(() => {
+            window.location.href = './index.html';
+          }, 300);
+        }
       }
     }
 
