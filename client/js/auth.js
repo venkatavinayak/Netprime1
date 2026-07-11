@@ -147,26 +147,29 @@
       
       // Setup dynamic auth listener
       window.Clerk.addListener(async ({ session }) => {
-        if (!initialCheckDone) {
+        const isFirstRun = !initialCheckDone;
+        if (isFirstRun) {
           initialCheckDone = true;
           // Unblock StateManager's initial refreshUserState
           if (window.resolveClerkReady) {
             window.resolveClerkReady();
           }
-          return;
         }
 
-        // Handle dynamic session changes after initial load
+        // Handle dynamic session changes (including startup check and subsequent updates)
         if (session) {
           const localToken = localStorage.getItem('netprime_token');
           const localUser = window.NetPrimeState?.currentUser;
           if (!localToken || !localUser || localUser.username === 'Guest User') {
             await finalizeClerkLogin();
           } else {
-            await window.NetPrimeState.refreshUserState();
+            if (window.NetPrimeState) {
+              await window.NetPrimeState.refreshUserState(true);
+            }
           }
         } else {
-          if (window.NetPrimeState) {
+          // If first run, don't trigger logout immediately (gives time for initial state to load)
+          if (!isFirstRun && window.NetPrimeState) {
             await window.NetPrimeState.logout();
           }
         }

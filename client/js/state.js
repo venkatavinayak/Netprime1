@@ -644,7 +644,10 @@
       this.redirectIfUnauthorized();
     }
 
-    async refreshUserState() {
+    async refreshUserState(force = false) {
+      if (force) {
+        this.activeRefreshPromise = null;
+      }
       this.activeRefreshPromise ??= this.performRefresh();
       try {
         await this.activeRefreshPromise;
@@ -906,7 +909,7 @@
           localStorage.setItem('netprime_token', data.token);
         }
         
-        await this.refreshUserState();
+        await this.refreshUserState(true);
         return data;
       } catch (err) {
         throw err;
