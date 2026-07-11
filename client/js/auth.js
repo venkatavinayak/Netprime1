@@ -1,7 +1,6 @@
 (function() {
   let clerkReady = false;
   window.lastClerkError = null;
-  let frontendApi = '';
 
   async function initClerk() {
     if (clerkReady) return true;
@@ -28,6 +27,7 @@
       }
 
       const parts = publishableKey.split('_');
+      let frontendApi = '';
       try {
         frontendApi = atob(parts[2]).replace(/\$$/, '');
       } catch (e) {
@@ -153,17 +153,6 @@
 
   // Open Clerk inside a responsive modal on the current page to avoid navigation lag
   window.showAuthModal = async function(view = 'sign-in', customRedirectUrl = null) {
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const redirectUrl = customRedirectUrl || window.location.href;
-
-    // Use hosted Account Portal on public domains to bypass third-party cookie restrictions
-    if (!isLocalhost) {
-      const subdomain = (frontendApi || 'tidy-sparrow-66.clerk.accounts.dev').split('.')[0];
-      const targetPath = view === 'sign-up' || view === 'signup' ? 'sign-up' : 'sign-in';
-      window.location.href = `https://${subdomain}.accounts.dev/${targetPath}?redirect_url=${encodeURIComponent(redirectUrl)}`;
-      return;
-    }
-
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
     
     // If we are already on login or signup pages, we don't open modals
@@ -215,6 +204,7 @@
     }
 
     mountContainer.innerHTML = ''; // Clear loader
+    const redirectUrl = customRedirectUrl || window.location.href;
 
     if (view === 'sign-up' || view === 'signup') {
       window.Clerk.mountSignUp(mountContainer, {
@@ -311,16 +301,10 @@
         // Logged out / guest user
         const params = new URLSearchParams(window.location.search);
         const redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
         if (protectedPages.includes(currentPage)) {
           window.showAuthModal('login', window.location.href);
         } else if (currentPage === 'login.html') {
-          if (!isLocalhost) {
-            const subdomain = (frontendApi || 'tidy-sparrow-66.clerk.accounts.dev').split('.')[0];
-            window.location.href = `https://${subdomain}.accounts.dev/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`;
-            return;
-          }
           // Mount Clerk Sign-In component directly on the page
           const container = document.getElementById('clerk-auth-container');
           if (container) {
@@ -349,11 +333,6 @@
             });
           }
         } else if (currentPage === 'signup.html') {
-          if (!isLocalhost) {
-            const subdomain = (frontendApi || 'tidy-sparrow-66.clerk.accounts.dev').split('.')[0];
-            window.location.href = `https://${subdomain}.accounts.dev/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`;
-            return;
-          }
           // Mount Clerk Sign-Up component directly on the page
           const container = document.getElementById('clerk-auth-container');
           if (container) {
