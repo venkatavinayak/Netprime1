@@ -7,7 +7,10 @@
     try {
       let publishableKey = '';
       try {
-        const res = await fetch('/api/config/clerk?_t=' + Date.now());
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+        const res = await fetch('/api/config/clerk?_t=' + Date.now(), { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           publishableKey = data.publishableKey;
@@ -15,7 +18,7 @@
           throw new Error(`Server returned status code ${res.status}`);
         }
       } catch (err) {
-        console.warn('Failed to fetch Clerk key from backend, using production fallback:', err);
+        console.warn('Failed to fetch Clerk key from backend within 2s, using production fallback:', err);
         window.lastClerkError = err;
       }
 
@@ -254,8 +257,12 @@
     const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
 
     if (ready) {
-      // Setup dynamic auth listener
       window.Clerk.addListener(async ({ session }) => {
+        // Resolve clerkReadyPromise immediately to break circular deadlock dependency with state manager
+        if (window.resolveClerkReady) {
+          window.resolveClerkReady();
+        }
+
         if (session) {
           const localToken = localStorage.getItem('netprime_token');
           const localUser = window.NetPrimeState?.currentUser;
@@ -280,11 +287,6 @@
           } else {
             await window.NetPrimeState.refreshUserState();
           }
-        }
-
-        // Resolve clerkReadyPromise so state.js state manager is unblocked
-        if (window.resolveClerkReady) {
-          window.resolveClerkReady();
         }
       });
 
