@@ -75,7 +75,7 @@
   }
 
   async function finalizeClerkLogin() {
-    if (!window.Clerk?.session) return;
+    if (!window.Clerk?.session || window.Clerk.session.status !== 'active' || !window.Clerk.user) return;
     const token = await window.Clerk.session.getToken();
     if (!token) return;
     try {
@@ -157,7 +157,7 @@
         }
 
         // Handle dynamic session changes (including startup check and subsequent updates)
-        if (session) {
+        if (session && session.status === 'active' && window.Clerk.user) {
           const localToken = localStorage.getItem('netprime_token');
           const localUser = window.NetPrimeState?.currentUser;
           if (!localToken || !localUser || localUser.username === 'Guest User') {

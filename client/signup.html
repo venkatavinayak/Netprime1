@@ -19,7 +19,10 @@
     document.addEventListener('DOMContentLoaded', () => {
       // Auto-redirect if already logged in on the backend
       const checkAndRedirect = (user = null) => {
-        const currentUser = user || (window.NetPrimeState ? window.NetPrimeState.currentUser : null);
+        if (!window.NetPrimeState || window.NetPrimeState.authStatus !== 'AUTHENTICATED') {
+          return;
+        }
+        const currentUser = user || window.NetPrimeState.currentUser;
         if (currentUser && currentUser.email && currentUser.email !== 'guest@netprime.com') {
           window.location.href = './index.html';
         }

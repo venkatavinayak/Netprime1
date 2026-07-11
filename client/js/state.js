@@ -13,7 +13,7 @@
       init.credentials = 'include';
       
       let token = null;
-      if (window.Clerk && window.Clerk.session) {
+      if (window.Clerk && window.Clerk.session && window.Clerk.session.status === 'active' && window.Clerk.user) {
         try {
           // Always obtain a fresh token immediately for authenticated requests
           token = await window.Clerk.session.getToken();
@@ -588,14 +588,17 @@
 
     redirectIfUnauthorized() {
       if (this.authStatus === 'UNAUTHENTICATED' && !this.isRedirecting) {
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-        const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+        const pathname = window.location.pathname;
+        const currentPage = pathname.split('/').pop() || 'index.html';
+        const isRoot = pathname === '/' || pathname === '';
         
         if (currentPage === 'login.html' || currentPage === 'signup.html') {
           return;
         }
 
-        if (protectedPages.includes(currentPage)) {
+        const protectedPages = ['index.html', 'profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+
+        if (protectedPages.includes(currentPage) || isRoot) {
           this.isRedirecting = true;
           if (window.showAuthModal) {
             window.showAuthModal('login', window.location.href);
@@ -672,7 +675,7 @@
         return;
       }
 
-      if (window.Clerk && window.Clerk.session) {
+      if (window.Clerk && window.Clerk.session && window.Clerk.session.status === 'active' && window.Clerk.user) {
         try {
           // Token lookup timeout (10 seconds)
           const token = await Promise.race([
