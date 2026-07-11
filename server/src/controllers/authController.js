@@ -37,12 +37,65 @@ exports.register = async (req, res) => {
   const { name, password } = req.body;
   const email = normalizeEmail(req.body.email);
   try {
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered.' });
+      if (existingUser.isEmailVerified) {
+        return res.status(400).json({ error: 'Email already registered.' });
+      }
+      
+      // User exists but is unverified. Re-trigger OTP verification.
+      if (name) existingUser.name = name;
+      if (password) {
+        const salt = await bcrypt.genSalt(10);
+        existingUser.password = await bcrypt.hash(password, salt);
+      }
+
+      // Generate a new 6-digit OTP code (cryptographically secure)
+      const otp = crypto.randomInt(100000, 1000000).toString();
+      const otpHash = await bcrypt.hash(otp, 10);
+      
+      existingUser.otpCodeHash = otpHash;
+      existingUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+      existingUser.otpSentAt = new Date();
+      existingUser.otpAttempts = 0;
+
+      await existingUser.save();
+
+      // Send OTP Verification Email asynchronously
+      sendEmail({
+        to: existingUser.email,
+        subject: 'Verify Your NetPrime Account 🍿',
+        text: `Your 6-digit verification code is: ${otp}. It will expire in 5 minutes.`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 500px; padding: 25px; border: 1px solid #ff007f; border-radius: 12px;">
+            <h2 style="color: #ff007f; margin-top: 0;">Welcome to NetPrime!</h2>
+            <p>Hi ${existingUser.name},</p>
+            <p>Please enter this 6-digit verification code to complete your registration:</p>
+            <div style="font-size: 2.2rem; font-weight: bold; letter-spacing: 6px; color: #ff007f; text-align: center; margin: 30px 0; padding: 15px; background: #fef0f6; border-radius: 8px; border: 1px dashed #ff007f;">
+              ${otp}
+            </div>
+            <p style="font-size: 0.9rem; color: #666;">This code will expire in 5 minutes. If you did not sign up for NetPrime, please ignore this email.</p>
+          </div>
+        `
+      }).catch(emailError => {
+        logger.error('Failed to send verification email asynchronously during re-registration: %O', emailError);
+      });
+
+      logger.info('Existing unverified user re-registered, new verification OTP dispatched: %s', existingUser.email);
+      return res.status(200).json({
+        message: 'Registration successful! Verification OTP sent to email.',
+        email: existingUser.email
+      });
     }
 
     // Encrypt password
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required.' });
+    }
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
@@ -451,6 +504,13 @@ exports.login = async (req, res) => {
   const { password, rememberMe } = req.body;
   const email = normalizeEmail(req.body.email);
   try {
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+    if (!password || password.trim() === '') {
+      return res.status(400).json({ error: 'Password is required.' });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
@@ -458,6 +518,10 @@ exports.login = async (req, res) => {
 
     if (!user.isEmailVerified) {
       return res.status(403).json({ error: 'Please verify your email address before logging in.' });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({ error: 'This account does not have a password set. Please log in using Google or reset your password.' });
     }
 
     // Verify Password

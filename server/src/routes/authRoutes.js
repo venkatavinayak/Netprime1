@@ -6,6 +6,12 @@ const { authLimiter } = require('../middleware/securityMiddleware');
 
 // Auth endpoints
 router.post('/clerk', authLimiter, authController.clerkLogin);
+router.post('/register', authLimiter, authController.register);
+router.post('/verify-otp', authLimiter, authController.verifyOtp);
+router.post('/resend-signup-otp', authLimiter, authController.resendSignupOtp);
+router.post('/send-login-otp', authLimiter, authController.sendLoginOtp);
+router.post('/verify-login-otp', authLimiter, authController.verifyLoginOtp);
+router.post('/login', authLimiter, authController.login);
 router.post('/logout', authController.logout);
 
 // Authenticated checks
