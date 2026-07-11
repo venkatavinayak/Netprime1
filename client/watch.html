@@ -14,8 +14,14 @@
 </head>
 <body class="player-page">
 
+  <!-- Immersive Full-Screen Page Loader -->
+  <div id="netprime-page-loader" class="page-loader-overlay">
+    <div class="loader-spinner"></div>
+    <p>Authorizing Playback...</p>
+  </div>
+
   <!-- Immersive Player Screen Container -->
-  <div id="video-container" class="video-container controls-active">
+  <div id="video-container" class="video-container controls-active" style="display: none;">
     
     <!-- Clean HTML5 native video player -->
     <video id="video-element" class="video-element" playsinline>

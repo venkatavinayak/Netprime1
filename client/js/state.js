@@ -509,94 +509,170 @@
     tier: 'FREE' // FREE or PREMIUM
   };
 
+  // Set up Clerk ready deferred promise
+  let resolveClerkReady;
+  window.clerkReadyPromise = new Promise((resolve) => {
+    resolveClerkReady = resolve;
+  });
+  window.resolveClerkReady = resolveClerkReady;
+
   // State Manager Class
   class StateManager {
     constructor() {
-      this.currentUser = GUEST_USER;
+      this.currentUser = this.loadCachedUser() || GUEST_USER;
       this.wishlist = [];
       this.movies = moviesDatabase;
       this.onInitializedCallbacks = [];
       this.initialized = false;
       this.pollInterval = null;
+      this.authStatus = 'LOADING'; // LOADING, AUTHENTICATED, UNAUTHENTICATED, SERVER_ERROR, CLERK_ERROR
+      this.activeRefreshPromise = null;
       
       // Perform initial check on startup
       this.refreshUserState();
     }
 
-    async refreshUserState() {
+    loadCachedUser() {
       try {
-        const response = await fetch('/api/auth/me');
-        if (response.ok) {
-          const data = await response.json();
-          const mappedUser = {
-            id: data.user.id,
-            username: data.user.name,
-            email: data.user.email,
-            avatar: data.user.avatar,
-            tier: data.subscription.plan,
-            planStartDate: data.subscription.startDate,
-            planExpiryDate: data.subscription.expiryDate,
-            isEmailVerified: data.user.isEmailVerified
-          };
+        const cached = localStorage.getItem('netprime_cached_user');
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (e) {
+        console.warn('Failed to parse cached user:', e);
+      }
+      return null;
+    }
 
-          const oldTier = this.currentUser.tier;
-          this.currentUser = mappedUser;
-          this.wishlist = data.user.wishlist || [];
+    fallbackToCachedUser() {
+      const cached = this.loadCachedUser();
+      if (cached) {
+        this.currentUser = cached;
+        this.triggerEvent('userChange', this.currentUser);
+      } else {
+        this.currentUser = GUEST_USER;
+        this.triggerEvent('userChange', this.currentUser);
+      }
+    }
 
-          this.triggerEvent('userChange', this.currentUser);
-          this.triggerEvent('wishlistChange', this.wishlist);
+    async clearLocalSessionAndRedirect() {
+      if (this.pollInterval) {
+        clearInterval(this.pollInterval);
+        this.pollInterval = null;
+      }
 
-          // Start interval polling if not already active
-          if (!this.pollInterval) {
-            this.pollInterval = setInterval(() => {
-              this.refreshUserState();
-            }, 15000);
-          }
+      this.currentUser = GUEST_USER;
+      this.wishlist = [];
+      this.triggerEvent('userChange', this.currentUser);
+      this.triggerEvent('wishlistChange', this.wishlist);
 
-          // Force page reload if subscription expired and demoted back to free
-          if (oldTier && oldTier !== 'FREE' && mappedUser.tier === 'FREE') {
-            window.showToastMessage('Your premium subscription validity has completed. Reverted to free tier.');
-            setTimeout(() => {
-              window.location.reload();
-            }, 4000);
-          }
-        } else if (response.status === 401) {
-          // An expired/invalid session is terminal until the user signs in again.
-          if (this.pollInterval) {
-            clearInterval(this.pollInterval);
-            this.pollInterval = null;
-          }
+      // Cleanly sign out of Clerk if session is present to avoid loop
+      if (window.Clerk && window.Clerk.session) {
+        try {
+          await window.Clerk.signOut();
+        } catch (e) {
+          console.error('Clerk signOut failed during clean reset:', e);
+        }
+      }
 
-          this.currentUser = GUEST_USER;
-          this.wishlist = [];
-          this.triggerEvent('userChange', this.currentUser);
-          this.triggerEvent('wishlistChange', this.wishlist);
+      localStorage.clear();
+      sessionStorage.clear();
+      document.cookie.split(";").forEach(c => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
 
-          localStorage.clear();
-          sessionStorage.clear();
-          document.cookie.split(";").forEach(c => {
-            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-          });
-
-          const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
-          const currentPage = window.location.pathname.split('/').pop();
-          if (protectedPages.includes(currentPage)) {
-            if (window.showAuthModal) {
-              window.showAuthModal('login', window.location.href);
-            } else {
-              window.location.href = './index.html?showLogin=true&redirect=' + encodeURIComponent(window.location.href);
-            }
-          }
+      const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+      const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+      if (protectedPages.includes(currentPage)) {
+        if (window.showAuthModal) {
+          window.showAuthModal('login', window.location.href);
         } else {
-          console.error(`Failed to sync auth state: server returned ${response.status}`);
+          window.location.href = './index.html?showLogin=true&redirect=' + encodeURIComponent(window.location.href);
         }
-      } catch (error) {
-        console.error('Failed to sync auth state with backend:', error);
+      }
+    }
+
+    async refreshUserState() {
+      if (this.activeRefreshPromise) {
+        return this.activeRefreshPromise;
+      }
+
+      this.activeRefreshPromise = (async () => {
+        // Wait for Clerk loading to finish
+        if (window.clerkReadyPromise) {
+          await window.clerkReadyPromise;
+        }
+
+        try {
+          const response = await fetch('/api/auth/me');
+          if (response.ok) {
+            const data = await response.json();
+            const mappedUser = {
+              id: data.user.id,
+              username: data.user.name,
+              email: data.user.email,
+              avatar: data.user.avatar,
+              tier: data.subscription.plan,
+              planStartDate: data.subscription.startDate,
+              planExpiryDate: data.subscription.expiryDate,
+              isEmailVerified: data.user.isEmailVerified
+            };
+
+            const oldTier = this.currentUser.tier;
+            this.currentUser = mappedUser;
+            this.wishlist = data.user.wishlist || [];
+            this.authStatus = 'AUTHENTICATED';
+
+            // Cache user data for offline/server-down fallback
+            try {
+              localStorage.setItem('netprime_cached_user', JSON.stringify(this.currentUser));
+            } catch (e) {}
+
+            this.triggerEvent('userChange', this.currentUser);
+            this.triggerEvent('wishlistChange', this.wishlist);
+
+            // Start interval polling if not already active
+            if (!this.pollInterval) {
+              this.pollInterval = setInterval(() => {
+                this.refreshUserState();
+              }, 15000);
+            }
+
+            // Force page reload if subscription expired and demoted back to free
+            if (oldTier && oldTier !== 'FREE' && mappedUser.tier === 'FREE') {
+              window.showToastMessage('Your premium subscription validity has completed. Reverted to free tier.');
+              setTimeout(() => {
+                window.location.reload();
+              }, 4000);
+            }
+          } else if (response.status === 401 || response.status === 403) {
+            // Definitively expired / unauthorized session
+            this.authStatus = 'UNAUTHENTICATED';
+            await this.clearLocalSessionAndRedirect();
+          } else {
+            // 5xx errors or other server errors
+            console.error(`Server returned error status: ${response.status}`);
+            this.authStatus = 'SERVER_ERROR';
+            this.fallbackToCachedUser();
+          }
+        } catch (error) {
+          console.error('Failed to sync auth state with backend:', error);
+          this.authStatus = 'SERVER_ERROR';
+          this.fallbackToCachedUser();
+        } finally {
+          if (!this.initialized) {
+            this.initialized = true;
+            this.onInitializedCallbacks.forEach(cb => {
+              try { cb(); } catch (err) { console.error('Callback error:', err); }
+            });
+          }
+        }
+      })();
+
+      try {
+        await this.activeRefreshPromise;
       } finally {
-        if (!this.initialized) {
-          this.initialized = true;
-          this.onInitializedCallbacks.forEach(cb => cb());
-        }
+        this.activeRefreshPromise = null;
       }
     }
 

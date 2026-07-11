@@ -22,6 +22,12 @@
 </head>
 <body style="background-color: var(--bg-primary);">
 
+  <!-- Immersive Full-Screen Page Loader -->
+  <div id="netprime-page-loader" class="page-loader-overlay">
+    <div class="loader-spinner"></div>
+    <p>Securing Connection...</p>
+  </div>
+
   <!-- Floating Navigation Bar -->
   <nav class="navbar scrolled">
     <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
@@ -74,7 +80,7 @@
   </nav>
 
   <!-- Checkout Layout -->
-  <main class="checkout-page container">
+  <main class="checkout-page container" style="display: none;">
     
     <!-- BILLING FORM & PAYMENT CARD OVERVIEW -->
     <div id="billing-section" class="checkout-grid">

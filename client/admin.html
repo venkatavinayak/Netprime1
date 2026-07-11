@@ -130,6 +130,12 @@
 </head>
 <body>
 
+  <!-- Immersive Full-Screen Page Loader -->
+  <div id="netprime-page-loader" class="page-loader-overlay">
+    <div class="loader-spinner"></div>
+    <p>Validating Credentials...</p>
+  </div>
+
   <!-- NAVIGATION NAVBAR -->
   <nav class="navbar glass">
     <div class="nav-content">
@@ -145,7 +151,7 @@
   </nav>
 
   <!-- ADMIN BODY -->
-  <div class="admin-container">
+  <div class="admin-container" style="display: none;">
     <h1 style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 30px;">Analytics & User Directory</h1>
     
     <!-- STATS BLOCKS -->
@@ -202,10 +208,22 @@
     document.addEventListener('DOMContentLoaded', () => {
       // 1. Enforce admin locks
       window.NetPrimeState.onInitialized(() => {
+        // Fade out loader overlay
+        const loader = document.getElementById('netprime-page-loader');
+        if (loader) loader.classList.add('fade-out');
+
+        if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
+          alert('Unable to load Admin panel because connection to authorization server was lost.');
+          window.location.href = './index.html';
+          return;
+        }
+
         const user = window.NetPrimeState.getCurrentUser();
         if (!user || user.email !== 'admin@netprime.com') {
           window.location.href = './index.html';
         } else {
+          const adminContainer = document.querySelector('.admin-container');
+          if (adminContainer) adminContainer.style.display = 'block';
           loadAdminStats();
           loadUserList();
         }

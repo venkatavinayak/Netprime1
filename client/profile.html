@@ -102,6 +102,12 @@
 </head>
 <body style="background-color: var(--bg-primary);">
 
+  <!-- Immersive Full-Screen Page Loader -->
+  <div id="netprime-page-loader" class="page-loader-overlay">
+    <div class="loader-spinner"></div>
+    <p>Securing Connection...</p>
+  </div>
+
   <!-- Floating Navigation Bar -->
   <nav class="navbar scrolled">
     <div class="navbar-brand" onclick="window.location.href='./index.html'" style="cursor: pointer;">
@@ -147,7 +153,7 @@
   </nav>
 
   <!-- Profile Layout -->
-  <main class="profile-page container" style="margin-top: 110px;">
+  <main class="profile-page container" style="margin-top: 110px; display: none;">
     <div id="profile-section-wrapper">
       
       <!-- TOP GRID: Settings & Wishlist -->
@@ -265,6 +271,10 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       window.NetPrimeState.onInitialized(() => {
+        // Fade out loader overlay
+        const loader = document.getElementById('netprime-page-loader');
+        if (loader) loader.classList.add('fade-out');
+
         // Handle Stripe payment success redirect verification
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('payment') === 'success' && urlParams.get('session_id')) {
@@ -277,9 +287,9 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ session_id: sessionId, plan: plan })
             })
-            .then(res => res.json())
-            .then(async (data) => {
-              if (data.status === 'SUCCESS') {
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(async ({ status, data }) => {
+              if (status === 200 && data.status === 'SUCCESS') {
                 window.showToastMessage('Payment verified! Welcome to NetPrime Premium.');
                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                 window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
@@ -310,6 +320,26 @@
 
         const user = window.NetPrimeState.getCurrentUser();
         
+        // Show main panel
+        const profilePage = document.querySelector('.profile-page');
+        if (profilePage) profilePage.style.display = 'block';
+
+        if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
+          document.getElementById('profile-section-wrapper').innerHTML = `
+            <div class="glass" style="padding: 60px 40px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 40px auto 0 auto;">
+              <i class="fa fa-triangle-exclamation animate-pulse" style="font-size: 4rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px; display: inline-block;"></i>
+              <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Connection Offline</h2>
+              <p style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 30px;">
+                NetPrime is temporarily unable to reach the authorization server. Please check your network connection or try again shortly.
+              </p>
+              <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn-premium" onclick="window.location.reload()"><i class="fa fa-sync"></i> Retry Connection</button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
         if (!user || user.username === 'Guest User') {
           document.getElementById('profile-section-wrapper').innerHTML = `
             <div class="glass" style="padding: 60px 40px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 40px auto 0 auto;">

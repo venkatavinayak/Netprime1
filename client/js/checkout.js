@@ -78,6 +78,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Bind listeners only after NetPrimeState is fully resolved
   window.NetPrimeState.onInitialized(() => {
+    // Fade out loader overlay
+    const loader = document.getElementById('netprime-page-loader');
+    if (loader) loader.classList.add('fade-out');
+
+    // Show main panel
+    const checkoutPage = document.querySelector('.checkout-page');
+    if (checkoutPage) checkoutPage.style.display = 'block';
+
+    if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
+      billingSection.innerHTML = `
+        <div class="glass" style="padding: 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 0 auto;">
+          <i class="fa fa-triangle-exclamation" style="font-size: 3.5rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px; display: inline-block;"></i>
+          <h2 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Connection Offline</h2>
+          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
+            NetPrime is temporarily unable to reach the authorization server. Please check your network connection or try again shortly.
+          </p>
+          <div style="display: flex; gap: 15px; justify-content: center;">
+            <button class="btn-premium" onclick="window.location.reload()"><i class="fa fa-sync"></i> Retry Connection</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
     const loggedIn = verifyUserLogin();
     if (!loggedIn) return;
 

@@ -87,7 +87,7 @@
 
   // Error Banner Renderer with detailed error log
   window.showClerkErrorBanner = function(message, error = null) {
-    const container = document.getElementById('clerk-auth-container');
+    const container = document.getElementById('clerk-auth-container') || document.querySelector('main') || document.querySelector('.admin-container') || document.body;
     if (container) {
       let details = '';
       if (error) {
@@ -151,13 +151,22 @@
           const localUser = window.NetPrimeState?.currentUser;
           if (!localToken || !localUser || localUser.username === 'Guest User') {
             await finalizeClerkLogin();
+          } else {
+            await window.NetPrimeState.refreshUserState();
           }
         } else {
           const localToken = localStorage.getItem('netprime_token');
           const localUser = window.NetPrimeState?.currentUser;
           if (localToken || (localUser && localUser.username !== 'Guest User')) {
             await window.NetPrimeState.logout();
+          } else {
+            await window.NetPrimeState.refreshUserState();
           }
+        }
+
+        // Resolve clerkReadyPromise so state.js state manager is unblocked
+        if (window.resolveClerkReady) {
+          window.resolveClerkReady();
         }
       });
 
@@ -228,6 +237,12 @@
       }
     } else {
       // Clerk failed to load (e.g. missing keys)
+      if (window.NetPrimeState) {
+        window.NetPrimeState.authStatus = 'CLERK_ERROR';
+      }
+      if (window.resolveClerkReady) {
+        window.resolveClerkReady();
+      }
       if (protectedPages.includes(currentPage) || currentPage === 'login.html' || currentPage === 'signup.html') {
         window.showClerkErrorBanner('Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.', window.lastClerkError);
       }

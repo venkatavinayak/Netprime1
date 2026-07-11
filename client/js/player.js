@@ -14,12 +14,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Double Check Security Gate on Backend
   window.NetPrimeState.onInitialized(async () => {
+    // Fade out loader overlay
+    const loader = document.getElementById('netprime-page-loader');
+    if (loader) loader.classList.add('fade-out');
+
+    if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
+      alert('Unable to authorize streaming because connection to server was lost. Please check your network.');
+      window.location.href = './index.html';
+      return;
+    }
+
     const authResult = await window.NetPrimeState.authorizeStream(movieId, movie.isFree);
     if (!authResult.authorized) {
       alert(authResult.error || 'This content is reserved for Premium subscribers!');
       window.location.href = './index.html';
       return;
     }
+
+    const videoContainer = document.getElementById('video-container');
+    if (videoContainer) videoContainer.style.display = 'block';
+
     initializeVideoPlayer();
   });
 
