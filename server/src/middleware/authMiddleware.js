@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { verifyToken: verifyClerkToken, createClerkClient } = require('@clerk/backend');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
@@ -22,7 +23,11 @@ const generateAccessToken = (user) => {
 // Generate refresh token (30 days)
 const generateRefreshToken = (user) => {
   return jwt.sign(
-    { id: user._id, email: user.email },
+    { 
+      id: user._id, 
+      email: user.email,
+      jti: crypto.randomBytes(16).toString('hex')
+    },
     process.env.REFRESH_TOKEN_SECRET || 'netprime_refresh_secret_token_30d_auth_rotation_secret_key_123456789',
     { expiresIn: '30d' }
   );
