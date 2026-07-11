@@ -208,24 +208,40 @@
     document.addEventListener('DOMContentLoaded', () => {
       // 1. Enforce admin locks
       window.NetPrimeState.onInitialized(() => {
-        // Fade out loader overlay
         const loader = document.getElementById('netprime-page-loader');
-        if (loader) loader.classList.add('fade-out');
 
-        if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
-          alert('Unable to load Admin panel because connection to authorization server was lost.');
-          window.location.href = './index.html';
-          return;
-        }
+        switch (window.NetPrimeState.authStatus) {
+          case 'AUTHENTICATED':
+            const user = window.NetPrimeState.getCurrentUser();
+            if (!user || user.email !== 'admin@netprime.com') {
+              window.location.href = './index.html';
+            } else {
+              if (loader) loader.classList.add('fade-out');
+              const adminContainer = document.querySelector('.admin-container');
+              if (adminContainer) adminContainer.style.display = 'block';
+              loadAdminStats();
+              loadUserList();
+            }
+            break;
 
-        const user = window.NetPrimeState.getCurrentUser();
-        if (!user || user.email !== 'admin@netprime.com') {
-          window.location.href = './index.html';
-        } else {
-          const adminContainer = document.querySelector('.admin-container');
-          if (adminContainer) adminContainer.style.display = 'block';
-          loadAdminStats();
-          loadUserList();
+          case 'UNAUTHENTICATED':
+            window.NetPrimeState.redirectIfUnauthorized();
+            break;
+
+          case 'NETWORK_ERROR':
+            alert('Unable to load Admin panel because you are offline. Please check your internet connection.');
+            window.location.href = './index.html';
+            break;
+
+          case 'SERVER_ERROR':
+            alert('Unable to load Admin panel because connection to authorization server was lost.');
+            window.location.href = './index.html';
+            break;
+
+          case 'CLERK_ERROR':
+            alert('Unable to load Admin panel because Clerk authentication failed to initialize.');
+            window.location.href = './index.html';
+            break;
         }
       });
 

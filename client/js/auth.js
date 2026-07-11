@@ -7,10 +7,7 @@
     try {
       let publishableKey = '';
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
-        const res = await fetch('/api/config/clerk?_t=' + Date.now(), { signal: controller.signal });
-        clearTimeout(timeoutId);
+        const res = await fetch('/api/config/clerk?_t=' + Date.now());
         if (res.ok) {
           const data = await res.json();
           publishableKey = data.publishableKey;
@@ -18,7 +15,7 @@
           throw new Error(`Server returned status code ${res.status}`);
         }
       } catch (err) {
-        console.warn('Failed to fetch Clerk key from backend within 2s, using production fallback:', err);
+        console.warn('Failed to fetch Clerk key from backend, using production fallback:', err);
         window.lastClerkError = err;
       }
 
@@ -36,20 +33,16 @@
 
       const scriptUrl = `https://${frontendApi}/npm/@clerk/clerk-js@4/dist/clerk.browser.js`;
 
-      // Load script with a 5-second timeout fail-safe to prevent indefinite network hanging
-      await Promise.race([
-        new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.setAttribute('data-clerk-publishable-key', publishableKey);
-          s.src = scriptUrl;
-          s.async = true;
-          s.crossOrigin = 'anonymous';
-          s.onload = resolve;
-          s.onerror = () => reject(new Error(`Failed to load Clerk JS SDK script from: ${scriptUrl}`));
-          document.head.appendChild(s);
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Clerk SDK script request timed out after 5s')), 5000))
-      ]);
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.setAttribute('data-clerk-publishable-key', publishableKey);
+        s.src = scriptUrl;
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error(`Failed to load Clerk JS SDK script from: ${scriptUrl}`));
+        document.head.appendChild(s);
+      });
 
       // Wait for window.Clerk to be defined (as either a function or an object)
       let checks = 0;
@@ -130,146 +123,40 @@
     setTimeout(() => { toast.style.transform = 'translateY(100px)'; toast.style.opacity = '0'; }, 4500);
   };
 
-  // Show a full screen loader overlay immediately on any button/action click to provide visual feedback
-  window.showPageActionLoader = function(message = 'Securing Connection...') {
-    let overlay = document.getElementById('netprime-action-loader-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'netprime-action-loader-overlay';
-      overlay.className = 'page-loader-overlay';
-      overlay.innerHTML = `
-        <div class="loader-spinner"></div>
-        <p>${message}</p>
-      `;
-      document.body.appendChild(overlay);
-    } else {
-      const p = overlay.querySelector('p');
-      if (p) p.textContent = message;
-      overlay.classList.remove('fade-out');
-      overlay.style.opacity = '1';
-      overlay.style.visibility = 'visible';
-    }
-  };
-
-  // Open Clerk inside a responsive modal on the current page to avoid navigation lag
+  // Redirect to custom local embedded Sign-In / Sign-Up pages
   window.showAuthModal = async function(view = 'sign-in', customRedirectUrl = null) {
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    let redirectUrl = customRedirectUrl;
+    if (!redirectUrl) {
+      const params = new URLSearchParams(window.location.search);
+      redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
+    }
     
-    // If we are already on login or signup pages, we don't open modals
-    if (currentPage === 'login.html' || currentPage === 'signup.html') {
-      return;
-    }
-
-    let overlay = document.getElementById('clerk-modal-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'clerk-modal-overlay';
-      overlay.className = 'modal-overlay';
-      overlay.innerHTML = `
-        <div class="modal-content glass" style="max-width: 480px; padding: 0; background: transparent; border: none; box-shadow: none; display: flex; justify-content: center; align-items: center; position: relative;">
-          <button id="clerk-modal-close-btn" class="modal-close-btn" style="position: absolute; top: -35px; right: 10px; z-index: 10001; color: #fff; font-size: 1.5rem; background: none; border: none; cursor: pointer; transition: transform 0.2s ease;">✕</button>
-          <div id="clerk-modal-mount-container" style="width: 100%; min-height: 450px; display: flex; align-items: center; justify-content: center;"></div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-
-      const closeBtn = overlay.querySelector('#clerk-modal-close-btn');
-      closeBtn.addEventListener('click', () => {
-        overlay.classList.remove('active');
-        const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
-        if (mountContainer) mountContainer.innerHTML = '';
-      });
-
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-          overlay.classList.remove('active');
-          const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
-          if (mountContainer) mountContainer.innerHTML = '';
-        }
-      });
-    }
-
-    const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
-    mountContainer.innerHTML = '<div class="loader-spinner"></div>';
-    overlay.classList.add('active');
-
-    // Wait until Clerk is ready
-    if (window.clerkReadyPromise) {
-      await window.clerkReadyPromise;
-    }
-
-    if (!window.Clerk) {
-      mountContainer.innerHTML = '<p style="color: #ff5252; text-align: center; padding: 20px; font-family: sans-serif;">Clerk authentication is currently offline. Please try again later.</p>';
-      return;
-    }
-
-    mountContainer.innerHTML = ''; // Clear loader
-    const redirectUrl = customRedirectUrl || window.location.href;
-
-    if (view === 'sign-up' || view === 'signup') {
-      window.Clerk.mountSignUp(mountContainer, {
-        signInUrl: './login.html',
-        afterSignUpUrl: redirectUrl,
-        appearance: {
-          variables: {
-            colorPrimary: '#ff007f',
-            colorBackground: '#121212',
-            colorText: '#ffffff',
-            colorTextSecondary: '#a0a0a0',
-            colorInputBackground: '#1d1d1d',
-            colorInputText: '#ffffff',
-            colorButtonText: '#ffffff'
-          },
-          elements: {
-            card: {
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
-              background: 'rgba(18, 18, 18, 0.95)'
-            }
-          }
-        }
-      });
-    } else {
-      window.Clerk.mountSignIn(mountContainer, {
-        signUpUrl: './signup.html',
-        afterSignInUrl: redirectUrl,
-        appearance: {
-          variables: {
-            colorPrimary: '#ff007f',
-            colorBackground: '#121212',
-            colorText: '#ffffff',
-            colorTextSecondary: '#a0a0a0',
-            colorInputBackground: '#1d1d1d',
-            colorInputText: '#ffffff',
-            colorButtonText: '#ffffff'
-          },
-          elements: {
-            card: {
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
-              background: 'rgba(18, 18, 18, 0.95)'
-            }
-          }
-        }
-      });
-    }
+    const url = (view === 'sign-up' || view === 'signup') 
+      ? `./signup.html?redirect=${encodeURIComponent(redirectUrl)}`
+      : `./login.html?redirect=${encodeURIComponent(redirectUrl)}`;
+    
+    window.location.href = url;
   };
 
-  const runAuthInit = async () => {
-    if (window.authInitStarted) return;
-    window.authInitStarted = true;
-
+  document.addEventListener('DOMContentLoaded', async () => {
     const ready = await initClerk();
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-    const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
 
     if (ready) {
+      let initialCheckDone = false;
+      
+      // Setup dynamic auth listener
       window.Clerk.addListener(async ({ session }) => {
-        // Resolve clerkReadyPromise immediately to break circular deadlock dependency with state manager
-        if (window.resolveClerkReady) {
-          window.resolveClerkReady();
+        if (!initialCheckDone) {
+          initialCheckDone = true;
+          // Unblock StateManager's initial refreshUserState
+          if (window.resolveClerkReady) {
+            window.resolveClerkReady();
+          }
+          return;
         }
 
+        // Handle dynamic session changes after initial load
         if (session) {
           const localToken = localStorage.getItem('netprime_token');
           const localUser = window.NetPrimeState?.currentUser;
@@ -278,34 +165,19 @@
           } else {
             await window.NetPrimeState.refreshUserState();
           }
-
-          // Close modal overlay on successful login
-          const overlay = document.getElementById('clerk-modal-overlay');
-          if (overlay) {
-            overlay.classList.remove('active');
-            const mountContainer = overlay.querySelector('#clerk-modal-mount-container');
-            if (mountContainer) mountContainer.innerHTML = '';
-          }
         } else {
-          const localToken = localStorage.getItem('netprime_token');
-          const localUser = window.NetPrimeState?.currentUser;
-          if (localToken || (localUser && localUser.username !== 'Guest User')) {
+          if (window.NetPrimeState) {
             await window.NetPrimeState.logout();
-          } else {
-            await window.NetPrimeState.refreshUserState();
           }
         }
       });
 
+      // Handle mounting components on auth pages
       if (!window.Clerk.session) {
-        // Logged out / guest user
         const params = new URLSearchParams(window.location.search);
         const redirectUrl = params.get('redirect') || (window.location.origin + '/index.html');
 
-        if (protectedPages.includes(currentPage)) {
-          window.showAuthModal('login', window.location.href);
-        } else if (currentPage === 'login.html') {
-          // Mount Clerk Sign-In component directly on the page
+        if (currentPage === 'login.html') {
           const container = document.getElementById('clerk-auth-container');
           if (container) {
             container.innerHTML = ''; // clear loading spinner
@@ -333,7 +205,6 @@
             });
           }
         } else if (currentPage === 'signup.html') {
-          // Mount Clerk Sign-Up component directly on the page
           const container = document.getElementById('clerk-auth-container');
           if (container) {
             container.innerHTML = ''; // clear loading spinner
@@ -370,16 +241,18 @@
       if (window.resolveClerkReady) {
         window.resolveClerkReady();
       }
+      
+      const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
       if (protectedPages.includes(currentPage) || currentPage === 'login.html' || currentPage === 'signup.html') {
         window.showClerkErrorBanner('Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.', window.lastClerkError);
       }
     }
-  };
 
-  // Run initialization when DOM is ready (avoid race condition with readyState check)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runAuthInit);
-  } else {
-    runAuthInit();
-  }
+    // Set up central redirect listeners on initialization
+    if (window.NetPrimeState) {
+      window.NetPrimeState.onInitialized(() => {
+        window.NetPrimeState.redirectIfUnauthorized();
+      });
+    }
+  });
 })();

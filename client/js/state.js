@@ -12,13 +12,19 @@
       input = BACKEND_URL + input;
       init.credentials = 'include';
       
-      let token = localStorage.getItem('netprime_token');
-      if (!token && window.Clerk && window.Clerk.session) {
+      let token = null;
+      if (window.Clerk && window.Clerk.session) {
         try {
+          // Always obtain a fresh token immediately for authenticated requests
           token = await window.Clerk.session.getToken();
         } catch (e) {
           console.warn('Failed to retrieve active Clerk session token:', e);
         }
+      }
+      
+      // Fallback to local storage token for native logins if Clerk is not active
+      if (!token) {
+        token = localStorage.getItem('netprime_token');
       }
       
       if (token) {
@@ -33,8 +39,13 @@
     
     const response = await originalFetch(input, init);
     
-    // Intercept login/Clerk auth to store token locally
-    if (typeof input === 'string' && (input.includes('/api/auth/login') || input.includes('/api/auth/clerk'))) {
+    // Intercept login/Clerk auth/OTP verify responses to store token locally
+    if (typeof input === 'string' && (
+      input.includes('/api/auth/login') || 
+      input.includes('/api/auth/clerk') || 
+      input.includes('/api/auth/verify-otp') || 
+      input.includes('/api/auth/verify-login-otp')
+    )) {
       if (response.ok) {
         try {
           const clone = response.clone();
@@ -509,19 +520,12 @@
     tier: 'FREE' // FREE or PREMIUM
   };
 
-  // Set up Clerk ready deferred promise with a 10s safety timeout to prevent page hangs
+  // Set up Clerk ready deferred promise
   let resolveClerkReady;
   window.clerkReadyPromise = new Promise((resolve) => {
     resolveClerkReady = resolve;
   });
   window.resolveClerkReady = resolveClerkReady;
-
-  setTimeout(() => {
-    if (resolveClerkReady) {
-      console.warn('Safety timeout: resolving clerkReadyPromise after 10s to prevent interface hangs');
-      resolveClerkReady();
-    }
-  }, 10000);
 
   // State Manager Class
   class StateManager {
@@ -532,11 +536,17 @@
       this.onInitializedCallbacks = [];
       this.initialized = false;
       this.pollInterval = null;
-      this.authStatus = 'LOADING'; // LOADING, AUTHENTICATED, UNAUTHENTICATED, SERVER_ERROR, CLERK_ERROR
+      this.authStatus = 'INITIALIZING'; // INITIALIZING, LOADING, AUTHENTICATED, UNAUTHENTICATED, SERVER_ERROR, CLERK_ERROR, NETWORK_ERROR
       this.activeRefreshPromise = null;
+      this.isRedirecting = false;
       
       // Perform initial check on startup
       this.refreshUserState();
+
+      // Clean polling tear-down on window close
+      window.addEventListener('beforeunload', () => {
+        this.stopPolling();
+      });
     }
 
     loadCachedUser() {
@@ -562,11 +572,42 @@
       }
     }
 
-    async clearLocalSessionAndRedirect() {
+    startPolling() {
+      if (this.pollInterval) return;
+      this.pollInterval = setInterval(() => {
+        this.refreshUserState();
+      }, 15000);
+    }
+
+    stopPolling() {
       if (this.pollInterval) {
         clearInterval(this.pollInterval);
         this.pollInterval = null;
       }
+    }
+
+    redirectIfUnauthorized() {
+      if (this.authStatus === 'UNAUTHENTICATED' && !this.isRedirecting) {
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+        
+        if (currentPage === 'login.html' || currentPage === 'signup.html') {
+          return;
+        }
+
+        if (protectedPages.includes(currentPage)) {
+          this.isRedirecting = true;
+          if (window.showAuthModal) {
+            window.showAuthModal('login', window.location.href);
+          } else {
+            window.location.href = './index.html?showLogin=true&redirect=' + encodeURIComponent(window.location.href);
+          }
+        }
+      }
+    }
+
+    async clearLocalSession() {
+      this.stopPolling();
 
       this.currentUser = GUEST_USER;
       this.wishlist = [];
@@ -582,36 +623,75 @@
         }
       }
 
-      localStorage.clear();
+      // Preserve user preference settings (theme, language, volume, watch settings)
+      const keysToRemove = [
+        'netprime_token',
+        'netprime_cached_user',
+        'netprime_wishlist',
+        'netprime_subscription_cache',
+        'netprime_notifications_cache'
+      ];
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+
       sessionStorage.clear();
       document.cookie.split(";").forEach(c => {
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
+    }
 
-      const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
-      const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-      if (protectedPages.includes(currentPage)) {
-        if (window.showAuthModal) {
-          window.showAuthModal('login', window.location.href);
-        } else {
-          window.location.href = './index.html?showLogin=true&redirect=' + encodeURIComponent(window.location.href);
-        }
-      }
+    async clearLocalSessionAndRedirect() {
+      await this.clearLocalSession();
+      this.redirectIfUnauthorized();
     }
 
     async refreshUserState() {
-      if (this.activeRefreshPromise) {
-        return this.activeRefreshPromise;
+      this.activeRefreshPromise ??= this.performRefresh();
+      try {
+        await this.activeRefreshPromise;
+      } finally {
+        this.activeRefreshPromise = null;
+      }
+    }
+
+    async performRefresh() {
+      // Wait for Clerk loading to finish
+      if (window.clerkReadyPromise) {
+        await window.clerkReadyPromise;
       }
 
-      this.activeRefreshPromise = (async () => {
-        // Wait for Clerk loading to finish
-        if (window.clerkReadyPromise) {
-          await window.clerkReadyPromise;
-        }
+      if (this.authStatus === 'INITIALIZING') {
+        this.authStatus = 'LOADING';
+      }
 
+      if (this.authStatus === 'CLERK_ERROR') {
+        this.fallbackToCachedUser();
+        this.completeInitialization();
+        return;
+      }
+
+      if (window.Clerk && window.Clerk.session) {
         try {
-          const response = await fetch('/api/auth/me');
+          // Token lookup timeout (10 seconds)
+          const token = await Promise.race([
+            window.Clerk.session.getToken(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Clerk token timeout')), 10000))
+          ]);
+
+          if (token) {
+            localStorage.setItem('netprime_token', token);
+          }
+
+          // Fetch user profile from backend with AbortController timeout (9 seconds)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+          let response;
+          try {
+            response = await fetch('/api/auth/me', { signal: controller.signal });
+          } finally {
+            clearTimeout(timeoutId);
+          }
+
           if (response.ok) {
             const data = await response.json();
             const mappedUser = {
@@ -630,7 +710,7 @@
             this.wishlist = data.user.wishlist || [];
             this.authStatus = 'AUTHENTICATED';
 
-            // Cache user data for offline/server-down fallback
+            // Cache user data
             try {
               localStorage.setItem('netprime_cached_user', JSON.stringify(this.currentUser));
             } catch (e) {}
@@ -638,12 +718,8 @@
             this.triggerEvent('userChange', this.currentUser);
             this.triggerEvent('wishlistChange', this.wishlist);
 
-            // Start interval polling if not already active
-            if (!this.pollInterval) {
-              this.pollInterval = setInterval(() => {
-                this.refreshUserState();
-              }, 15000);
-            }
+            // Start polling (only for verified active session)
+            this.startPolling();
 
             // Force page reload if subscription expired and demoted back to free
             if (oldTier && oldTier !== 'FREE' && mappedUser.tier === 'FREE') {
@@ -653,33 +729,48 @@
               }, 4000);
             }
           } else if (response.status === 401 || response.status === 403) {
-            // Definitively expired / unauthorized session
             this.authStatus = 'UNAUTHENTICATED';
-            await this.clearLocalSessionAndRedirect();
+            await this.clearLocalSession();
           } else {
-            // 5xx errors or other server errors
             console.error(`Server returned error status: ${response.status}`);
             this.authStatus = 'SERVER_ERROR';
             this.fallbackToCachedUser();
           }
         } catch (error) {
           console.error('Failed to sync auth state with backend:', error);
-          this.authStatus = 'SERVER_ERROR';
-          this.fallbackToCachedUser();
-        } finally {
-          if (!this.initialized) {
-            this.initialized = true;
-            this.onInitializedCallbacks.forEach(cb => {
-              try { cb(); } catch (err) { console.error('Callback error:', err); }
-            });
+          if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+            this.authStatus = 'NETWORK_ERROR';
+          } else if (error instanceof TypeError || error.message?.includes('fetch') || !window.navigator.onLine) {
+            this.authStatus = 'NETWORK_ERROR';
+          } else {
+            this.authStatus = 'SERVER_ERROR';
           }
+          this.fallbackToCachedUser();
         }
-      })();
+      } else {
+        // No session
+        this.authStatus = 'UNAUTHENTICATED';
+        const localToken = localStorage.getItem('netprime_token');
+        const localUser = this.currentUser;
+        if (localToken || (localUser && localUser.username !== 'Guest User')) {
+          await this.clearLocalSession();
+        } else {
+          this.currentUser = GUEST_USER;
+          this.wishlist = [];
+          this.triggerEvent('userChange', this.currentUser);
+          this.triggerEvent('wishlistChange', this.wishlist);
+        }
+      }
 
-      try {
-        await this.activeRefreshPromise;
-      } finally {
-        this.activeRefreshPromise = null;
+      this.completeInitialization();
+    }
+
+    completeInitialization() {
+      if (!this.initialized) {
+        this.initialized = true;
+        this.onInitializedCallbacks.forEach(cb => {
+          try { cb(); } catch (err) { console.error('Callback error:', err); }
+        });
       }
     }
 
@@ -823,46 +914,13 @@
     }
 
     async logout() {
-      const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
-      const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-      const isProtected = protectedPages.includes(currentPage);
-
-      if (isProtected && window.showPageActionLoader) {
-        window.showPageActionLoader('Logging out securely...');
-      }
-
       try {
-        if (this.pollInterval) {
-          clearInterval(this.pollInterval);
-          this.pollInterval = null;
-        }
         await fetch('/api/auth/logout', { method: 'POST' });
       } catch (error) {
         console.error('Logout error:', error);
       } finally {
-        localStorage.clear();
-        sessionStorage.clear();
-        document.cookie.split(";").forEach(c => {
-          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-        this.currentUser = GUEST_USER;
-        this.wishlist = [];
-        this.triggerEvent('userChange', this.currentUser);
-        this.triggerEvent('wishlistChange', this.wishlist);
-
-        if (window.Clerk && window.Clerk.session) {
-          try {
-            await window.Clerk.signOut();
-          } catch (e) {
-            console.error('Clerk signOut failed:', e);
-          }
-        }
-
-        if (isProtected) {
-          setTimeout(() => {
-            window.location.href = './index.html';
-          }, 300);
-        }
+        await this.clearLocalSession();
+        window.location.href = './index.html';
       }
     }
 
@@ -964,31 +1022,41 @@
   // Bind to global window object
   window.NetPrimeState = new StateManager();
 
-  // Cross-tab synchronization
+  // Setup BroadcastChannel for modern browsers
+  let authChannel = null;
+  if (typeof BroadcastChannel !== 'undefined') {
+    authChannel = new BroadcastChannel('netprime-auth');
+    authChannel.addEventListener('message', (event) => {
+      handleAuthSync(event.data);
+    });
+  }
+
+  // Cross-tab synchronization via localStorage fallback
   window.addEventListener('storage', function(e) {
     if (e.key === 'netprime_event_sync' && e.newValue) {
       try {
         const data = JSON.parse(e.newValue);
-        if (data.name === 'userChange') {
-          if (window.NetPrimeState && typeof window.NetPrimeState.loadCachedUser === 'function') {
-            window.NetPrimeState.currentUser = window.NetPrimeState.loadCachedUser() || GUEST_USER;
-            window.dispatchEvent(new CustomEvent('netprime_userChange', { detail: window.NetPrimeState.currentUser }));
-          }
-        } else if (data.name === 'wishlistChange') {
-          if (window.NetPrimeState) {
-            try {
-              const cached = localStorage.getItem('netprime_cached_user');
-              if (cached) {
-                const parsed = JSON.parse(cached);
-                window.NetPrimeState.wishlist = parsed.wishlist || [];
-              }
-            } catch (e) {}
-            window.dispatchEvent(new CustomEvent('netprime_wishlistChange', { detail: window.NetPrimeState.wishlist }));
-          }
-        }
+        handleAuthSync(data);
       } catch(err) {}
     }
   });
+
+  function handleAuthSync(data) {
+    if (data.name === 'userChange') {
+      const cachedUser = window.NetPrimeState.loadCachedUser() || GUEST_USER;
+      window.NetPrimeState.currentUser = cachedUser;
+      window.dispatchEvent(new CustomEvent('netprime_userChange', { detail: cachedUser }));
+      
+      const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
+      const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+      
+      if (protectedPages.includes(currentPage) && cachedUser.username === 'Guest User') {
+        window.location.reload(); // Reload triggers redirect
+      }
+    } else if (data.name === 'wishlistChange') {
+      window.NetPrimeState.refreshUserState();
+    }
+  }
 
   // Shared Theme Switcher Initialization
   document.addEventListener('DOMContentLoaded', () => {

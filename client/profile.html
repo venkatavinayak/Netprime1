@@ -271,91 +271,98 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       window.NetPrimeState.onInitialized(() => {
-        // Fade out loader overlay
         const loader = document.getElementById('netprime-page-loader');
-        if (loader) loader.classList.add('fade-out');
-
-        // Handle Stripe payment success redirect verification
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('payment') === 'success' && urlParams.get('session_id')) {
-          const sessionId = urlParams.get('session_id');
-          const plan = urlParams.get('plan') || 'TRIAL';
-          
-          const verifyPaymentSession = (attempts = 0) => {
-            fetch('/api/payments/stripe/verify-session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ session_id: sessionId, plan: plan })
-            })
-            .then(res => res.json().then(data => ({ status: res.status, data })))
-            .then(async ({ status, data }) => {
-              if (status === 200 && data.status === 'SUCCESS') {
-                window.showToastMessage('Payment verified! Welcome to NetPrime Premium.');
-                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-                await window.NetPrimeState.refreshUserState();
-                window.location.reload();
-              } else if (data.status === 'PROCESSING') {
-                if (attempts < 5) {
-                  window.showToastMessage('Payment processing... waiting for verification.');
-                  setTimeout(() => verifyPaymentSession(attempts + 1), 2000);
-                } else {
-                  window.showToastMessage('Payment processing taking longer than expected. We will notify you via email once active!');
-                  const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                  window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-                }
-              } else {
-                window.showToastMessage(data.error || 'Payment verification failed.');
-              }
-            })
-            .catch(err => {
-              console.error('Verify session error:', err);
-              window.showToastMessage('Error verifying checkout session.');
-            });
-          };
-          
-          verifyPaymentSession();
-          return;
-        }
-
-        const user = window.NetPrimeState.getCurrentUser();
-        
-        // Show main panel
         const profilePage = document.querySelector('.profile-page');
-        if (profilePage) profilePage.style.display = 'block';
 
-        if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
+        const renderProfileError = (title, msg, icon) => {
           document.getElementById('profile-section-wrapper').innerHTML = `
             <div class="glass" style="padding: 60px 40px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 40px auto 0 auto;">
-              <i class="fa fa-triangle-exclamation animate-pulse" style="font-size: 4rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px; display: inline-block;"></i>
-              <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Connection Offline</h2>
+              <i class="fa ${icon} animate-pulse" style="font-size: 4rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px; display: inline-block;"></i>
+              <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 12px;">${title}</h2>
               <p style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 30px;">
-                NetPrime is temporarily unable to reach the authorization server. Please check your network connection or try again shortly.
+                ${msg}
               </p>
               <div style="display: flex; gap: 15px; justify-content: center;">
                 <button class="btn-premium" onclick="window.location.reload()"><i class="fa fa-sync"></i> Retry Connection</button>
               </div>
             </div>
           `;
-          return;
+        };
+
+        switch (window.NetPrimeState.authStatus) {
+          case 'AUTHENTICATED':
+            // Fade out loader overlay
+            if (loader) loader.classList.add('fade-out');
+            if (profilePage) profilePage.style.display = 'block';
+
+            // Handle Stripe payment success redirect verification
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('payment') === 'success' && urlParams.get('session_id')) {
+              const sessionId = urlParams.get('session_id');
+              const plan = urlParams.get('plan') || 'TRIAL';
+              
+              const verifyPaymentSession = (attempts = 0) => {
+                fetch('/api/payments/stripe/verify-session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ session_id: sessionId, plan: plan })
+                })
+                .then(res => res.json().then(data => ({ status: res.status, data })))
+                .then(async ({ status, data }) => {
+                  if (status === 200 && data.status === 'SUCCESS') {
+                    window.showToastMessage('Payment verified! Welcome to NetPrime Premium.');
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                    await window.NetPrimeState.refreshUserState();
+                    window.location.reload();
+                  } else if (data.status === 'PROCESSING') {
+                    if (attempts < 5) {
+                      window.showToastMessage('Payment processing... waiting for verification.');
+                      setTimeout(() => verifyPaymentSession(attempts + 1), 2000);
+                    } else {
+                      window.showToastMessage('Payment processing taking longer than expected. We will notify you via email once active!');
+                      const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                      window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                    }
+                  } else {
+                    window.showToastMessage(data.error || 'Payment verification failed.');
+                  }
+                })
+                .catch(err => {
+                  console.error('Verify session error:', err);
+                  window.showToastMessage('Error verifying checkout session.');
+                });
+              };
+              
+              verifyPaymentSession();
+              return;
+            }
+            break;
+
+          case 'UNAUTHENTICATED':
+            window.NetPrimeState.redirectIfUnauthorized();
+            return;
+
+          case 'NETWORK_ERROR':
+            if (loader) loader.classList.add('fade-out');
+            if (profilePage) profilePage.style.display = 'block';
+            renderProfileError('Network Offline', 'Your network connection is offline. Please check your internet connection and try again.', 'fa-wifi');
+            return;
+
+          case 'SERVER_ERROR':
+            if (loader) loader.classList.add('fade-out');
+            if (profilePage) profilePage.style.display = 'block';
+            renderProfileError('Connection Offline', 'NetPrime is temporarily unable to reach the authorization server. Please try again shortly.', 'fa-triangle-exclamation');
+            return;
+
+          case 'CLERK_ERROR':
+            if (loader) loader.classList.add('fade-out');
+            if (profilePage) profilePage.style.display = 'block';
+            renderProfileError('Authentication Error', 'Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.', 'fa-key');
+            return;
         }
 
-        if (!user || user.username === 'Guest User') {
-          document.getElementById('profile-section-wrapper').innerHTML = `
-            <div class="glass" style="padding: 60px 40px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 40px auto 0 auto;">
-              <i class="fa fa-user-circle" style="font-size: 4rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px;"></i>
-              <h2 style="font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Sign In Required</h2>
-              <p style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 30px;">
-                Log in to your NetPrime account to view settings, check transactions, and manage active devices.
-              </p>
-              <div style="display: flex; gap: 15px; justify-content: center;">
-                <button class="btn-outline" onclick="showAuthModal('login')">Sign In</button>
-                <button class="btn-premium" onclick="showAuthModal('signup')">Create Free Account</button>
-              </div>
-            </div>
-          `;
-          return;
-        }
+        const user = window.NetPrimeState.getCurrentUser();
 
         // Populate User Info elements
         const editInput = document.getElementById('edit-username');

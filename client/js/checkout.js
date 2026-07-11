@@ -36,77 +36,75 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // Ensure user is logged in & email is verified
-  function verifyUserLogin() {
-    const user = window.NetPrimeState.getCurrentUser();
-    
-    if (!user || user.username === 'Guest User') {
-      billingSection.innerHTML = `
-        <div class="glass" style="padding: 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 0 auto;">
-          <i class="fa fa-lock" style="font-size: 3.5rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px;"></i>
-          <h2 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Sign In Required</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
-            Please log in or register a NetPrime account before subscribing to our Premium packages.
-          </p>
-          <div style="display: flex; gap: 15px; justify-content: center;">
-            <button class="btn-outline" onclick="window.showAuthModal('login')">Sign In</button>
-            <button class="btn-premium" onclick="window.showAuthModal('signup')">Register Account</button>
-          </div>
+  const renderCheckoutError = (title, msg, icon) => {
+    billingSection.innerHTML = `
+      <div class="glass" style="padding: 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 0 auto;">
+        <i class="fa ${icon}" style="font-size: 3.5rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px; display: inline-block;"></i>
+        <h2 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 12px;">${title}</h2>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
+          ${msg}
+        </p>
+        <div style="display: flex; gap: 15px; justify-content: center;">
+          <button class="btn-premium" onclick="window.location.reload()"><i class="fa fa-sync"></i> Retry Connection</button>
         </div>
-      `;
-      return false;
-    }
-
-    if (!user.isEmailVerified) {
-      billingSection.innerHTML = `
-        <div class="glass" style="padding: 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 0 auto;">
-          <i class="fa fa-envelope" style="font-size: 3.5rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px;"></i>
-          <h2 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Email Verification Required</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
-            Your account email <strong>${user.email}</strong> is not verified yet. Please verify your email using the link sent during registration before subscribing.
-          </p>
-          <div style="display: flex; gap: 15px; justify-content: center;">
-            <button class="btn-premium" onclick="window.location.reload()">I have verified, Refresh Page</button>
-          </div>
-        </div>
-      `;
-      return false;
-    }
-
-    return true;
-  }
+      </div>
+    `;
+  };
 
   // Bind listeners only after NetPrimeState is fully resolved
   window.NetPrimeState.onInitialized(() => {
-    // Fade out loader overlay
     const loader = document.getElementById('netprime-page-loader');
-    if (loader) loader.classList.add('fade-out');
-
-    // Show main panel
     const checkoutPage = document.querySelector('.checkout-page');
-    if (checkoutPage) checkoutPage.style.display = 'block';
 
-    if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
-      billingSection.innerHTML = `
-        <div class="glass" style="padding: 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 0 auto;">
-          <i class="fa fa-triangle-exclamation" style="font-size: 3.5rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px; display: inline-block;"></i>
-          <h2 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Connection Offline</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
-            NetPrime is temporarily unable to reach the authorization server. Please check your network connection or try again shortly.
-          </p>
-          <div style="display: flex; gap: 15px; justify-content: center;">
-            <button class="btn-premium" onclick="window.location.reload()"><i class="fa fa-sync"></i> Retry Connection</button>
-          </div>
-        </div>
-      `;
-      return;
+    switch (window.NetPrimeState.authStatus) {
+      case 'AUTHENTICATED':
+        // Check if email is verified
+        const user = window.NetPrimeState.getCurrentUser();
+        if (!user.isEmailVerified) {
+          if (loader) loader.classList.add('fade-out');
+          if (checkoutPage) checkoutPage.style.display = 'block';
+          billingSection.innerHTML = `
+            <div class="glass" style="padding: 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,0,127,0.15); max-width: 600px; margin: 0 auto;">
+              <i class="fa fa-envelope" style="font-size: 3.5rem; color: var(--accent-magenta); text-shadow: var(--shadow-magenta); margin-bottom: 20px;"></i>
+              <h2 style="font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 12px;">Email Verification Required</h2>
+              <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
+                Your account email <strong>${user.email}</strong> is not verified yet. Please verify your email using the link sent during registration before subscribing.
+              </p>
+              <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn-premium" onclick="window.location.reload()">I have verified, Refresh Page</button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        if (loader) loader.classList.add('fade-out');
+        if (checkoutPage) checkoutPage.style.display = 'block';
+        updateDynamicQrCode();
+        break;
+
+      case 'UNAUTHENTICATED':
+        window.NetPrimeState.redirectIfUnauthorized();
+        break;
+
+      case 'NETWORK_ERROR':
+        if (loader) loader.classList.add('fade-out');
+        if (checkoutPage) checkoutPage.style.display = 'block';
+        renderCheckoutError('Network Offline', 'Your network connection is offline. Please check your internet settings.', 'fa-wifi');
+        break;
+
+      case 'SERVER_ERROR':
+        if (loader) loader.classList.add('fade-out');
+        if (checkoutPage) checkoutPage.style.display = 'block';
+        renderCheckoutError('Connection Offline', 'NetPrime is temporarily unable to reach the authorization server. Please check your network connection or try again shortly.', 'fa-triangle-exclamation');
+        break;
+
+      case 'CLERK_ERROR':
+        if (loader) loader.classList.add('fade-out');
+        if (checkoutPage) checkoutPage.style.display = 'block';
+        renderCheckoutError('Authentication Offline', 'Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.', 'fa-key');
+        break;
     }
-
-    const loggedIn = verifyUserLogin();
-    if (!loggedIn) return;
-
-    // Load initial QR code
-    updateDynamicQrCode();
   });
 
   // 1. Plan Selector Event Handlers

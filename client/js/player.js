@@ -14,27 +14,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Double Check Security Gate on Backend
   window.NetPrimeState.onInitialized(async () => {
-    // Fade out loader overlay
     const loader = document.getElementById('netprime-page-loader');
-    if (loader) loader.classList.add('fade-out');
 
-    if (window.NetPrimeState.authStatus === 'SERVER_ERROR') {
-      alert('Unable to authorize streaming because connection to server was lost. Please check your network.');
-      window.location.href = './index.html';
-      return;
+    switch (window.NetPrimeState.authStatus) {
+      case 'AUTHENTICATED':
+        const authResult = await window.NetPrimeState.authorizeStream(movieId, movie.isFree);
+        if (!authResult.authorized) {
+          alert(authResult.error || 'This content is reserved for Premium subscribers!');
+          window.location.href = './index.html';
+          return;
+        }
+
+        if (loader) loader.classList.add('fade-out');
+        const videoContainer = document.getElementById('video-container');
+        if (videoContainer) videoContainer.style.display = 'block';
+
+        initializeVideoPlayer();
+        break;
+
+      case 'UNAUTHENTICATED':
+        window.NetPrimeState.redirectIfUnauthorized();
+        break;
+
+      case 'NETWORK_ERROR':
+        alert('Unable to authorize streaming because you are offline. Please check your internet connection.');
+        window.location.href = './index.html';
+        break;
+
+      case 'SERVER_ERROR':
+        alert('Unable to authorize streaming because connection to server was lost. Please check your network.');
+        window.location.href = './index.html';
+        break;
+
+      case 'CLERK_ERROR':
+        alert('Unable to authorize streaming because Clerk authentication failed to initialize.');
+        window.location.href = './index.html';
+        break;
     }
-
-    const authResult = await window.NetPrimeState.authorizeStream(movieId, movie.isFree);
-    if (!authResult.authorized) {
-      alert(authResult.error || 'This content is reserved for Premium subscribers!');
-      window.location.href = './index.html';
-      return;
-    }
-
-    const videoContainer = document.getElementById('video-container');
-    if (videoContainer) videoContainer.style.display = 'block';
-
-    initializeVideoPlayer();
   });
 
   const videoPlayer = document.getElementById('video-element');
