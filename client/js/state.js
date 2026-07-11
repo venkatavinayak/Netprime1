@@ -816,6 +816,9 @@
     }
 
     async logout() {
+      if (window.showPageActionLoader) {
+        window.showPageActionLoader('Logging out securely...');
+      }
       try {
         if (this.pollInterval) {
           clearInterval(this.pollInterval);
@@ -843,7 +846,10 @@
           }
         }
 
-        window.location.href = './index.html';
+        // Slight delay so the loader can be seen and transitions occur smoothly
+        setTimeout(() => {
+          window.location.href = './index.html';
+        }, 300);
       }
     }
 

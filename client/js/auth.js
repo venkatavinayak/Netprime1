@@ -123,8 +123,33 @@
     setTimeout(() => { toast.style.transform = 'translateY(100px)'; toast.style.opacity = '0'; }, 4500);
   };
 
+  // Show a full screen loader overlay immediately on any button/action click to provide visual feedback
+  window.showPageActionLoader = function(message = 'Securing Connection...') {
+    let overlay = document.getElementById('netprime-action-loader-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'netprime-action-loader-overlay';
+      overlay.className = 'page-loader-overlay';
+      overlay.innerHTML = `
+        <div class="loader-spinner"></div>
+        <p>${message}</p>
+      `;
+      document.body.appendChild(overlay);
+    } else {
+      const p = overlay.querySelector('p');
+      if (p) p.textContent = message;
+      overlay.classList.remove('fade-out');
+      overlay.style.opacity = '1';
+      overlay.style.visibility = 'visible';
+    }
+  };
+
   // Redirect to custom local embedded Sign-In / Sign-Up pages
   window.showAuthModal = async function(view = 'sign-in', customRedirectUrl = null) {
+    if (window.showPageActionLoader) {
+      window.showPageActionLoader(view === 'signup' || view === 'sign-up' ? 'Preparing Registration...' : 'Securing Authentication...');
+    }
+
     let redirectUrl = customRedirectUrl;
     if (!redirectUrl) {
       const params = new URLSearchParams(window.location.search);
@@ -135,7 +160,10 @@
       ? `./signup.html?redirect=${encodeURIComponent(redirectUrl)}`
       : `./login.html?redirect=${encodeURIComponent(redirectUrl)}`;
     
-    window.location.href = url;
+    // Give animation 300ms to fade in before page navigation
+    setTimeout(() => {
+      window.location.href = url;
+    }, 300);
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
