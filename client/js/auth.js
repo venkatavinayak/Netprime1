@@ -36,16 +36,20 @@
 
       const scriptUrl = `https://${frontendApi}/npm/@clerk/clerk-js@4/dist/clerk.browser.js`;
 
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.setAttribute('data-clerk-publishable-key', publishableKey);
-        s.src = scriptUrl;
-        s.async = true;
-        s.crossOrigin = 'anonymous';
-        s.onload = resolve;
-        s.onerror = () => reject(new Error(`Failed to load Clerk JS SDK script from: ${scriptUrl}`));
-        document.head.appendChild(s);
-      });
+      // Load script with a 5-second timeout fail-safe to prevent indefinite network hanging
+      await Promise.race([
+        new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.setAttribute('data-clerk-publishable-key', publishableKey);
+          s.src = scriptUrl;
+          s.async = true;
+          s.crossOrigin = 'anonymous';
+          s.onload = resolve;
+          s.onerror = () => reject(new Error(`Failed to load Clerk JS SDK script from: ${scriptUrl}`));
+          document.head.appendChild(s);
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Clerk SDK script request timed out after 5s')), 5000))
+      ]);
 
       // Wait for window.Clerk to be defined (as either a function or an object)
       let checks = 0;
@@ -251,7 +255,10 @@
     }
   };
 
-  document.addEventListener('DOMContentLoaded', async () => {
+  const runAuthInit = async () => {
+    if (window.authInitStarted) return;
+    window.authInitStarted = true;
+
     const ready = await initClerk();
     const currentPage = window.location.pathname.split('/').pop() || 'index.html';
     const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
@@ -367,5 +374,12 @@
         window.showClerkErrorBanner('Could not initialize Clerk authentication. Please ensure that you have configured your Clerk API keys in the backend .env configuration.', window.lastClerkError);
       }
     }
-  });
+  };
+
+  // Run initialization when DOM is ready (avoid race condition with readyState check)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runAuthInit);
+  } else {
+    runAuthInit();
+  }
 })();

@@ -509,12 +509,19 @@
     tier: 'FREE' // FREE or PREMIUM
   };
 
-  // Set up Clerk ready deferred promise
+  // Set up Clerk ready deferred promise with a 10s safety timeout to prevent page hangs
   let resolveClerkReady;
   window.clerkReadyPromise = new Promise((resolve) => {
     resolveClerkReady = resolve;
   });
   window.resolveClerkReady = resolveClerkReady;
+
+  setTimeout(() => {
+    if (resolveClerkReady) {
+      console.warn('Safety timeout: resolving clerkReadyPromise after 10s to prevent interface hangs');
+      resolveClerkReady();
+    }
+  }, 10000);
 
   // State Manager Class
   class StateManager {
@@ -963,11 +970,21 @@
       try {
         const data = JSON.parse(e.newValue);
         if (data.name === 'userChange') {
-          window.NetPrimeState.currentUser = window.NetPrimeState.loadUser();
-          window.dispatchEvent(new CustomEvent('netprime_userChange', { detail: window.NetPrimeState.currentUser }));
+          if (window.NetPrimeState && typeof window.NetPrimeState.loadCachedUser === 'function') {
+            window.NetPrimeState.currentUser = window.NetPrimeState.loadCachedUser() || GUEST_USER;
+            window.dispatchEvent(new CustomEvent('netprime_userChange', { detail: window.NetPrimeState.currentUser }));
+          }
         } else if (data.name === 'wishlistChange') {
-          window.NetPrimeState.wishlist = window.NetPrimeState.loadWishlist();
-          window.dispatchEvent(new CustomEvent('netprime_wishlistChange', { detail: window.NetPrimeState.wishlist }));
+          if (window.NetPrimeState) {
+            try {
+              const cached = localStorage.getItem('netprime_cached_user');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                window.NetPrimeState.wishlist = parsed.wishlist || [];
+              }
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent('netprime_wishlistChange', { detail: window.NetPrimeState.wishlist }));
+          }
         }
       } catch(err) {}
     }
