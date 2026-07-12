@@ -149,19 +149,33 @@ exports.deleteAllOtherSessions = async (req, res) => {
 };
 
 // 9. Stream Movie Trailer Link Authorization (Verify Subscription Status on Backend)
+const FREE_MOVIE_IDS = new Set([
+  'hanuman',
+  'leo',
+  'nayak',
+  'vikram',
+  'jalsa',
+  'toli',
+  'tammudu'
+]);
+
 exports.authorizeStream = async (req, res) => {
-  const { movieId, isFree } = req.query;
+  const { movieId } = req.query;
+
+  if (!movieId) {
+    return res.status(400).json({ error: 'Movie ID is required.' });
+  }
 
   try {
-    // If the movie is marked as Free, allow stream instantly without subscription checks
-    if (isFree === 'true') {
+    // Determine free status on the server using the hardcoded whitelist
+    if (FREE_MOVIE_IDS.has(movieId)) {
       return res.status(200).json({
         authorized: true,
         message: 'Free access granted.'
       });
     }
 
-    // Load active subscription status
+    // Load active subscription status from database
     const sub = await Subscription.findOne({ userId: req.user.id });
     if (sub && sub.status === 'ACTIVE' && sub.expiryDate > new Date()) {
       return res.status(200).json({

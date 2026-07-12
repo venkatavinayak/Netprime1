@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     switch (window.NetPrimeState.authStatus) {
       case 'AUTHENTICATED':
-        const authResult = await window.NetPrimeState.authorizeStream(movieId, movie.isFree);
+        const authResult = await window.NetPrimeState.authorizeStream(movieId);
         if (!authResult.authorized) {
           alert(authResult.error || 'This content is reserved for Premium subscribers!');
           window.location.href = './index.html';

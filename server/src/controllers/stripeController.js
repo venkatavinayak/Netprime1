@@ -12,6 +12,16 @@ const planPrices = {
   YEARLY: 1499   // ₹1499
 };
 
+const ALLOWED_ORIGINS = [
+  'http://localhost:5000',
+  'http://127.0.0.1:5000',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'https://venkat-portfolio-streaming.netlify.app'
+];
+
 // Shared helper to handle subscription activation db updates and PDF invoicing
 async function activateSubscriptionHelper(userId, plan, transactionId, amountPaidOverride = null) {
   if (!Object.prototype.hasOwnProperty.call(planPrices, plan)) {
@@ -155,6 +165,25 @@ exports.createCheckoutSession = async (req, res, next) => {
 
     const priceAmount = planPrices[plan];
 
+    // Dynamically resolve client base URL from whitelist to prevent open redirect vulnerabilities
+    let clientUrl = process.env.CLIENT_URL || 'http://localhost:5000';
+    let reqOrigin = null;
+    if (req.headers.referer) {
+      try {
+        const parsedUrl = new URL(req.headers.referer);
+        reqOrigin = parsedUrl.origin;
+      } catch (e) {
+        logger.warn('Failed to parse referer: %O', e);
+      }
+    } else if (req.headers.origin) {
+      reqOrigin = req.headers.origin;
+    }
+
+    if (reqOrigin && ALLOWED_ORIGINS.includes(reqOrigin)) {
+      clientUrl = reqOrigin;
+    }
+    clientUrl = clientUrl.replace(/\/$/, '');
+
     // Check if we are running in Developer Mock Mode
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('placeholder')) {
       if (process.env.NODE_ENV === 'production') {
@@ -170,7 +199,7 @@ exports.createCheckoutSession = async (req, res, next) => {
           .catch(error => logger.error('Developer Stripe mock callback failed: %O', error));
       });
       return res.json({ 
-        url: `${process.env.CLIENT_URL || 'http://localhost:5000'}/profile.html?payment=success&mock=true&session_id=${mockSessionId}&plan=${plan}`
+        url: `${clientUrl}/profile.html?payment=success&mock=true&session_id=${mockSessionId}&plan=${plan}`
       });
     }
 
@@ -190,8 +219,8 @@ exports.createCheckoutSession = async (req, res, next) => {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:5000'}/profile.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5000'}/checkout.html?payment=cancel`,
+      success_url: `${clientUrl}/profile.html?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${clientUrl}/checkout.html?payment=cancel`,
       customer_email: user.email,
       metadata: {
         userId: user._id.toString(),

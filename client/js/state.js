@@ -979,9 +979,9 @@
       }
     }
 
-    async authorizeStream(movieId, isFree) {
+    async authorizeStream(movieId) {
       try {
-        const res = await fetch(`/api/user/stream?movieId=${movieId}&isFree=${isFree}`);
+        const res = await fetch(`/api/user/stream?movieId=${movieId}`);
         const data = await res.json();
         return {
           authorized: res.ok && data.authorized,
