@@ -8,23 +8,34 @@ We built NetPrime to show off beautiful glassmorphic interfaces (using pure Vani
 
 ## 📂 Project Structure
 
-At a high level, the project is organized into two primary folders:
+Here is a simplified layout covering all key directories and files in the project:
 
 ```
 NETPRIMEORG/
-├── client/          # Frontend website (HTML, CSS, JS) — Zero build steps needed!
-│   ├── assets/      # Movie images, posters, and icons
-│   ├── css/         # Styling files (glassmorphism design & animations)
-│   ├── js/          # Browser scripts (auth handlers, video player, Stripe payment flow)
-│   └── *.html       # HTML pages (home screen, login, user profile, custom video player)
+├── client/                     # Frontend website (HTML, CSS, JS) — No build step required!
+│   ├── assets/                 # SVGs, images, and video assets
+│   ├── css/                    # Custom CSS stylesheets (layout, themes, & animations)
+│   ├── js/                     # Client-side JavaScript logic:
+│   │   ├── auth.js             # Clerk authentication & user login state
+│   │   ├── checkout.js         # Stripe & Razorpay SDK interactions
+│   │   ├── main.js             # UI scripts (sliders, search, and page actions)
+│   │   ├── player.js           # Custom HTML5 media player controls
+│   │   └── state.js            # Global state management & backend base URLs
+│   ├── index.html              # Homepage & main movie list catalog
+│   ├── login.html / signup.html # Authenticaton views (Login, Signup, OTP Verification)
+│   ├── movie.html / watch.html # Movie detail views & video player window
+│   └── profile.html            # User settings, billing invoices, & subscriptions
 │
-└── server/          # Backend API (Node.js & Express)
-    ├── src/         # Database models, API routes, and helper functions
-    └── server.js    # Express server entry point (runs on http://localhost:5000)
+└── server/                     # Backend API server (Node.js & Express)
+    ├── src/                    # Backend source code:
+    │   ├── config/             # Database connection & Clerk auth initializers
+    │   ├── controllers/        # Logic handlers (payments, user data, auth endpoints)
+    │   ├── middleware/         # Security headers, CORS, & rate-limiters
+    │   ├── models/             # Mongoose schemas (User, Subscription, Payment, Session)
+    │   ├── routes/             # Express API endpoints mapping
+    │   └── utils/              # PDF invoice generator, mailer, & cron schedulers
+    └── server.js               # Express application gateway (runs on http://localhost:5000)
 ```
-
-- **`client/`**: The frontend static website. Since it is written in vanilla HTML, CSS, and JS, there is **no build step required**. You can serve it using any simple static file server or host it directly on Netlify or Vercel.
-- **`server/`**: The Node.js + Express backend API. It handles user registration, database records (via MongoDB), security, scheduled subscription tasks, and payment webhooks.
 
 ---
 
