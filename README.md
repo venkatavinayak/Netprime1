@@ -12,20 +12,27 @@ We built NetPrime to show off beautiful glassmorphic interfaces (using pure Vani
 
 ## 📂 Project Structure
 
-Here is a simple layout of the project:
+Here is a mid-sized layout of the project covering all files at a glance:
 
 ```
 NETPRIMEORG/
-├── client/                     # Frontend website (HTML, CSS, JS) — No build step required!
-│   ├── assets/                 # Movie posters, images, and SVGs
-│   ├── css/                    # Custom CSS files (styling & glassmorphism layout)
-│   ├── js/                     # Frontend scripts (auth, payments, and media player)
-│   └── *.html                  # HTML pages (home, watch, profile, login, etc.)
+├── client/                     # Frontend (Static site, zero build step)
+│   ├── assets/                 # Movie trailers, poster images, and SVGs
+│   ├── css/                    # components.css, main.css
+│   ├── js/                     # auth.js, checkout.js, main.js, player.js, state.js
+│   └── *.html                  # admin, checkout, contact, index, login, movie, profile, signup, verify, watch
 │
-└── server/                     # Backend API server (Node.js & Express)
-    ├── src/                    # Backend source files (models, controllers, routes)
-    ├── server.js               # Entry point of the Express API
-    └── package.json            # Backend dependencies list
+└── server/                     # Backend API (Node.js & Express)
+    ├── src/
+    │   ├── config/             # clerk.js, db.js, razorpay.js
+    │   ├── controllers/        # adminController, authController, paymentController, stripeController, userController
+    │   ├── middleware/         # authMiddleware, errorMiddleware, securityMiddleware
+    │   ├── models/             # Payment.js, Session.js, Subscription.js, User.js
+    │   ├── routes/             # adminRoutes, authRoutes, paymentRoutes, userRoutes
+    │   └── utils/              # email.js, logger.js, pdf.js, scheduler.js
+    ├── .env.example            # Environment setup template
+    ├── server.js               # Express application gateway
+    └── package.json            # Backend packages and scripts
 ```
 
 ---
