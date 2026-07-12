@@ -22,7 +22,7 @@ NETPRIMEORG/
 │   ├── js/                     # auth.js, checkout.js, main.js, player.js, state.js
 │   └── *.html                  # admin, checkout, contact, index, login, movie, profile, signup, verify, watch
 │
-└── server/                     # Backend API (Node.js & Express)
+└── server/                     # Backend API (Node.js)
     ├── src/
     │   ├── config/             # clerk.js, db.js, razorpay.js
     │   ├── controllers/        # adminController, authController, paymentController, stripeController, userController
@@ -31,7 +31,7 @@ NETPRIMEORG/
     │   ├── routes/             # adminRoutes, authRoutes, paymentRoutes, userRoutes
     │   └── utils/              # email.js, logger.js, pdf.js, scheduler.js
     ├── .env.example            # Environment setup template
-    ├── server.js               # Express application gateway
+    ├── server.js               # Backend server entry point
     └── package.json            # Backend packages and scripts
 ```
 
