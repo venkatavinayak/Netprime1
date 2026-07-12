@@ -12,27 +12,27 @@ We built NetPrime to show off beautiful glassmorphic interfaces (using pure Vani
 
 ## 📂 Project Structure
 
-Here is a mid-sized layout of the project covering all files at a glance:
+Here is a clean, expanded yet minimal layout of the project's folders:
 
 ```
 NETPRIMEORG/
-├── client/                     # Frontend (Static site, zero build step)
-│   ├── assets/                 # Movie trailers, poster images, and SVGs
-│   ├── css/                    # components.css, main.css
-│   ├── js/                     # auth.js, checkout.js, main.js, player.js, state.js
-│   └── *.html                  # admin, checkout, contact, index, login, movie, profile, signup, verify, watch
+├── client/                     # Frontend static files (zero build steps)
+│   ├── assets/                 # Movie posters, banners, and icons
+│   ├── css/                    # Stylesheets (main styles & components layout)
+│   ├── js/                     # Client-side scripts (auth, payments, and custom player)
+│   └── *.html                  # HTML pages (home, watch, profile, checkouts)
 │
 └── server/                     # Backend API (Node.js)
-    ├── src/
-    │   ├── config/             # clerk.js, db.js, razorpay.js
-    │   ├── controllers/        # adminController, authController, paymentController, stripeController, userController
-    │   ├── middleware/         # authMiddleware, errorMiddleware, securityMiddleware
-    │   ├── models/             # Payment.js, Session.js, Subscription.js, User.js
-    │   ├── routes/             # adminRoutes, authRoutes, paymentRoutes, userRoutes
-    │   └── utils/              # email.js, logger.js, pdf.js, scheduler.js
-    ├── .env.example            # Environment setup template
+    ├── src/                    # Backend source code
+    │   ├── config/             # DB connection & third-party initializers
+    │   ├── controllers/        # Request controllers (auth, payments, user data)
+    │   ├── middleware/         # Security guards & route protections
+    │   ├── models/             # Mongoose database schemas
+    │   ├── routes/             # Express router endpoints mapping
+    │   └── utils/              # Schedulers, email, & PDF invoice utils
+    ├── .env.example            # Starter environment configuration
     ├── server.js               # Backend server entry point
-    └── package.json            # Backend packages and scripts
+    └── package.json            # Dependency tree and boot scripts
 ```
 
 ---
