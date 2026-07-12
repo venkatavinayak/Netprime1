@@ -44,7 +44,7 @@ exports.createOrder = async (req, res) => {
       });
       orderId = rzpOrder.id;
     } else {
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_MOCK_PAYMENTS !== 'true') {
         logger.error('Razorpay configuration missing in production!');
         return res.status(500).json({ error: 'Payment gateway configuration missing in production.' });
       }
@@ -155,7 +155,7 @@ exports.verifyPayment = async (req, res) => {
   try {
     const hasMockCredential = [razorpayOrderId, razorpayPaymentId, razorpaySignature]
       .some(value => typeof value === 'string' && /(^|_)mock_/i.test(value));
-    if (process.env.NODE_ENV === 'production' && hasMockCredential) {
+    if (process.env.NODE_ENV === 'production' && hasMockCredential && process.env.ALLOW_MOCK_PAYMENTS !== 'true') {
       logger.warn('Mock Razorpay credentials rejected in production.');
       return res.status(403).json({ error: 'Mock payments are forbidden in production.' });
     }
@@ -186,7 +186,7 @@ exports.verifyPayment = async (req, res) => {
         return res.status(400).json({ error: 'Signature verification failed. Potential tampering.' });
       }
     } else {
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_MOCK_PAYMENTS !== 'true') {
         logger.warn('Mock Razorpay verification attempt rejected in production.');
         return res.status(403).json({ error: 'Mock payments are forbidden in production.' });
       }
