@@ -588,17 +588,14 @@
 
     redirectIfUnauthorized() {
       if (this.authStatus === 'UNAUTHENTICATED' && !this.isRedirecting) {
-        const pathname = window.location.pathname;
-        const currentPage = pathname.split('/').pop() || 'index.html';
-        const isRoot = pathname === '/' || pathname === '';
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const protectedPages = ['profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
         
         if (currentPage === 'login.html' || currentPage === 'signup.html') {
           return;
         }
 
-        const protectedPages = ['index.html', 'profile.html', 'account.html', 'dashboard.html', 'premium.html', 'watch.html', 'settings.html', 'admin.html', 'checkout.html'];
-
-        if (protectedPages.includes(currentPage) || isRoot) {
+        if (protectedPages.includes(currentPage)) {
           this.isRedirecting = true;
           if (window.showAuthModal) {
             window.showAuthModal('login', window.location.href);
