@@ -12,66 +12,20 @@ We built NetPrime to show off beautiful glassmorphic interfaces (using pure Vani
 
 ## 📂 Project Structure
 
-Here is the complete, accurate project layout detailing every codebase file and directory:
+Here is a simple layout of the project:
 
 ```
 NETPRIMEORG/
-├── client/                     # Frontend static files (No build step required!)
-│   ├── assets/                 # Movie trailers, poster images, and SVGs
-│   ├── css/
-│   │   ├── components.css      # Core styles for cards, grids, buttons, & glassmorphism
-│   │   └── main.css            # Base stylesheet (reset, variables, typography)
-│   ├── js/
-│   │   ├── auth.js             # Handles Clerk SSO & custom session authentication
-│   │   ├── checkout.js         # Integration with Stripe & Razorpay SDKs
-│   │   ├── main.js             # UI controls (sliders, watchlists, search filters)
-│   │   ├── player.js           # HTML5 media player controls & keyboard shortcuts
-│   │   └── state.js            # Global state manager & backend API route configuration
-│   ├── admin.html              # Administrator portal dashboard
-│   ├── checkout.html           # Stripe / Razorpay checkouts and plan selections
-│   ├── contact.html            # Contact and support form
-│   ├── index.html              # Main homepage and movie listings catalog
-│   ├── login.html              # Custom OTP login and standard credentials page
-│   ├── movie.html              # Specific movie details, reviews, and trailer view
-│   ├── profile.html            # User account settings, billing invoices & sub info
-│   ├── signup.html             # Custom OTP registration form
-│   ├── verify.html             # OTP email verification verification code input
-│   └── watch.html              # Immersive movie screening view with custom player
+├── client/                     # Frontend website (HTML, CSS, JS) — No build step required!
+│   ├── assets/                 # Movie posters, images, and SVGs
+│   ├── css/                    # Custom CSS files (styling & glassmorphism layout)
+│   ├── js/                     # Frontend scripts (auth, payments, and media player)
+│   └── *.html                  # HTML pages (home, watch, profile, login, etc.)
 │
 └── server/                     # Backend API server (Node.js & Express)
-    ├── src/
-    │   ├── config/
-    │   │   ├── clerk.js        # Backend verification mechanism for Clerk JWTs
-    │   │   ├── db.js           # MongoDB connection configuration via Mongoose
-    │   │   └── razorpay.js     # Razorpay payment gateway initializer
-    │   ├── controllers/
-    │   │   ├── adminController.js # Admin operations, system logs, & database CRUD
-    │   │   ├── authController.js  # Registration, login, and custom OTP controls
-    │   │   ├── paymentController.js # General order verification and webhook endpoints
-    │   │   ├── stripeController.js  # Stripe sessions, payment intents, and webhook parsing
-    │   │   └── userController.js  # Profile retrieval, updates, and watchlist sync
-    │   ├── middleware/
-    │   │   ├── authMiddleware.js  # JWT verification guards for private routes
-    │   │   ├── errorMiddleware.js # Centralized HTTP response error interceptor
-    │   │   └── securityMiddleware.js # CORS configuration, Rate-limiters, & Helmet headers
-    │   ├── models/
-    │   │   ├── Payment.js      # Mongoose schema for transaction tracking
-    │   │   ├── Session.js      # Custom authentication session history logs
-    │   │   ├── Subscription.js # User subscription active state and plans
-    │   │   └── User.js         # User records, password hashing, and watchlist fields
-    │   ├── routes/
-    │   │   ├── adminRoutes.js  # Administrative control endpoints
-    │   │   ├── authRoutes.js   # Custom and Clerk authorization routes
-    │   │   ├── paymentRoutes.js # Orders, webhooks, checkout sessions
-    │   │   └── userRoutes.js   # User information retrieval and update endpoints
-    │   └── utils/
-    │       ├── email.js        # Nodemailer OTP email dispatch helper
-    │       ├── logger.js       # Winston logger setup (combined and error logs)
-    │       ├── pdf.js          # Programmatic PDF invoice generator (via pdfkit)
-    │       └── scheduler.js    # Subscription expiry checkers (cron jobs)
-    ├── .env.example            # Environment variables starter guide template
-    ├── server.js               # Express core application and routing router map
-    └── package.json            # Node.js backend configuration and dependency tree
+    ├── src/                    # Backend source files (models, controllers, routes)
+    ├── server.js               # Entry point of the Express API
+    └── package.json            # Backend dependencies list
 ```
 
 ---
