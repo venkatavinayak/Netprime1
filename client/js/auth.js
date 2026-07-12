@@ -168,8 +168,9 @@
             }
           }
         } else {
-          // If first run, don't trigger logout immediately (gives time for initial state to load)
-          if (!isFirstRun && window.NetPrimeState) {
+          // Only trigger logout if the user was previously logged in locally (has a token)
+          const localToken = localStorage.getItem('netprime_token');
+          if (!isFirstRun && localToken && window.NetPrimeState) {
             await window.NetPrimeState.logout();
           }
         }
