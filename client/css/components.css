@@ -2423,4 +2423,393 @@ html.light-theme .wishlist-empty-state i {
   color: rgba(0, 0, 0, 0.1);
 }
 
+/* ==========================================================================
+   Antigravity Responsive Design System & Mobile UX Overrides
+   ========================================================================== */
+
+/* Navbar Toggle Button (Desktop hidden) */
+.navbar-toggle-btn {
+  display: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: var(--transition-fast);
+  outline: none;
+  flex-shrink: 0;
+}
+
+.navbar-toggle-btn:hover {
+  background: rgba(255, 0, 127, 0.1);
+  border-color: var(--accent-magenta);
+  color: var(--accent-magenta);
+  box-shadow: 0 0 12px rgba(255, 0, 127, 0.2);
+}
+
+html.light-theme .navbar-toggle-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+
+html.light-theme .navbar-toggle-btn:hover {
+  background: rgba(255, 0, 127, 0.08);
+  border-color: var(--accent-magenta);
+}
+
+/* Support Channels Grid base (Contact page) */
+.support-channels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 25px;
+  margin-bottom: 25px;
+}
+
+html.light-theme .support-channels-grid {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Base image safety rule: images never overflow their parent container */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* tablet & Mobile Views (<= 768px) */
+@media (max-width: 768px) {
+  /* Navbar Layout */
+  .navbar {
+    padding: 0 15px;
+    height: 65px;
+  }
+  
+  .navbar-brand {
+    font-size: 1.5rem;
+  }
+  
+  .navbar-toggle-btn {
+    display: flex;
+  }
+  
+  /* Collapsible Navigation Menu Drawer */
+  .navbar-menu {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 65px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 65px);
+    background: rgba(8, 8, 13, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid var(--accent-magenta-subtle);
+    padding: 30px 0;
+    margin-left: 0;
+    gap: 10px;
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+    overflow-y: auto;
+  }
+  
+  html.light-theme .navbar-menu {
+    background: rgba(242, 242, 247, 0.96);
+    border-top-color: rgba(0, 0, 0, 0.06);
+    border-bottom-color: rgba(255, 0, 127, 0.15);
+  }
+  
+  .navbar-menu.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  
+  .navbar-item {
+    width: 100%;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+  }
+  
+  .navbar-menu.active .navbar-item {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  /* Stagger link animations slightly when drawer is opened */
+  .navbar-menu.active .navbar-item:nth-child(1) { transition-delay: 0.05s; }
+  .navbar-menu.active .navbar-item:nth-child(2) { transition-delay: 0.10s; }
+  .navbar-menu.active .navbar-item:nth-child(3) { transition-delay: 0.15s; }
+  .navbar-menu.active .navbar-item:nth-child(4) { transition-delay: 0.20s; }
+  
+  .navbar-item a {
+    display: block;
+    padding: 15px 20px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    width: 90%;
+    margin: 0 auto;
+    text-align: center;
+    border: 1px solid transparent;
+  }
+  
+  .navbar-item a::after {
+    display: none; /* Hide hover underline effect */
+  }
+  
+  .navbar-item a:hover,
+  .navbar-item.active a {
+    background: rgba(255, 0, 127, 0.08);
+    border-color: rgba(255, 0, 127, 0.15);
+    color: var(--accent-magenta);
+    text-shadow: 0 0 10px rgba(255, 0, 127, 0.2);
+  }
+  
+  html.light-theme .navbar-item a:hover,
+  html.light-theme .navbar-item.active a {
+    background: rgba(255, 0, 127, 0.05);
+  }
+
+  .navbar-actions {
+    gap: 12px;
+  }
+
+  /* Hero Banner Responsiveness */
+  .hero-slideshow {
+    height: 65vh;
+    min-height: 420px;
+  }
+
+  .hero-slide-content {
+    left: 5%;
+    bottom: 8%;
+    width: 90%;
+    gap: 12px;
+  }
+
+  .hero-slide-title {
+    font-size: 2.2rem;
+  }
+
+  .hero-slide-desc {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .hero-ctas {
+    gap: 10px;
+    margin-top: 5px;
+  }
+
+  .hero-ctas button {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 0.85rem;
+  }
+
+  .hero-slider-arrows {
+    display: none; /* Hide slideshow prev/next arrows to clean mobile view */
+  }
+
+  .carousel-section {
+    margin-top: -30px;
+    padding: 0 15px;
+  }
+  
+  /* Movie Details (movie.html) */
+  .movie-details-backdrop {
+    height: 45vh;
+    min-height: 300px;
+  }
+
+  .movie-details-container {
+    margin-top: -10vh;
+    padding-bottom: 40px;
+  }
+
+  .movie-details-poster-card {
+    height: 320px;
+    max-width: 240px;
+    margin: 0 auto;
+  }
+
+  .movie-meta-block {
+    text-align: center;
+    align-items: center;
+  }
+
+  .movie-details-row-meta {
+    justify-content: center;
+  }
+
+  .movie-details-synopsis {
+    max-width: 100%;
+    font-size: 0.95rem;
+  }
+
+  .movie-cast-info {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* Video Player (watch.html) */
+  .video-controls-overlay {
+    padding: 15px;
+  }
+
+  .player-header {
+    gap: 10px;
+  }
+
+  .player-back-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  .player-title-info h2 {
+    font-size: 1.1rem;
+  }
+
+  .player-buttons-left, .player-buttons-right {
+    gap: 15px;
+  }
+
+  .player-btn {
+    font-size: 1.1rem;
+  }
+
+  .volume-slider {
+    display: none; /* Hide volume slider to fit controls on mobile width */
+  }
+
+  .time-display {
+    font-size: 0.75rem;
+  }
+}
+
+/* Mobile Small Viewports (<= 576px) */
+@media (max-width: 576px) {
+  /* Support Channels Grid collapses to single column */
+  .support-channels-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  /* Checkout page card & forms padding */
+  .checkout-summary-card {
+    padding: 20px;
+  }
+
+  .pricing-card {
+    padding: 15px;
+  }
+
+  .pricing-card-price {
+    font-size: 1.45rem;
+  }
+
+  /* Profile preset picker column wrap */
+  .avatar-grid-picker {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .profile-details-row {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+
+  .profile-avatar-large {
+    width: 100px;
+    height: 100px;
+  }
+
+  .profile-username-title {
+    font-size: 1.6rem;
+  }
+}
+
+/* Tiny Viewports (<= 480px) */
+@media (max-width: 480px) {
+  .navbar-brand {
+    font-size: 1.35rem;
+  }
+
+  /* Clamp search input expansion to prevent overflow */
+  .search-input:focus,
+  .search-input.active {
+    width: 140px;
+  }
+
+  .search-results-dropdown {
+    width: 280px;
+    right: -45px;
+  }
+
+  /* Minimize modal overlay padding on mobile */
+  .modal-content,
+  .not-uploaded-modal-content {
+    padding: 25px 20px;
+  }
+
+  .warning-icon-glow {
+    font-size: 2.8rem;
+    margin-bottom: 15px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.5rem;
+  }
+
+  /* Form spacing tweaks */
+  .form-input {
+    height: 46px;
+    font-size: 0.9rem;
+  }
+
+  .btn-form-submit {
+    height: 46px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Landscape / Portrait Adjustments on credit cards (<= 360px) */
+@media (max-width: 360px) {
+  /* Scale down the 3D payment card display dynamically so it never overflows the viewport */
+  .credit-card-container {
+    transform: scale(0.8);
+    transform-origin: center top;
+    margin-bottom: -35px;
+  }
+  
+  .navbar-brand {
+    font-size: 1.25rem;
+  }
+  
+  .pricing-card-price {
+    font-size: 1.3rem;
+  }
+}
+
 

@@ -17,6 +17,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Dynamic Mobile Navbar Hamburger Toggle Injection and Events
+  if (navBar && !document.querySelector('.navbar-toggle-btn')) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'navbar-toggle-btn';
+    toggleBtn.setAttribute('title', 'Toggle Navigation Menu');
+    toggleBtn.innerHTML = '<i class="fa fa-bars"></i>';
+
+    const navbarActions = navBar.querySelector('.navbar-actions');
+    if (navbarActions) {
+      navbarActions.appendChild(toggleBtn);
+    } else {
+      navBar.appendChild(toggleBtn);
+    }
+
+    const navbarMenu = navBar.querySelector('.navbar-menu');
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isActive = navbarMenu.classList.toggle('active');
+      const icon = toggleBtn.querySelector('i');
+      
+      if (isActive) {
+        icon.className = 'fa fa-times';
+        document.body.style.overflow = 'hidden'; // Lock body scroll when open
+      } else {
+        icon.className = 'fa fa-bars';
+        document.body.style.overflow = ''; // Unlock body scroll
+      }
+    });
+
+    // Close menu when selecting a link
+    const navLinks = navbarMenu.querySelectorAll('a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        navbarMenu.classList.remove('active');
+        toggleBtn.querySelector('i').className = 'fa fa-bars';
+        document.body.style.overflow = ''; // Unlock body scroll
+      });
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (navbarMenu.classList.contains('active') && !navbarMenu.contains(e.target) && !toggleBtn.contains(e.target)) {
+        navbarMenu.classList.remove('active');
+        toggleBtn.querySelector('i').className = 'fa fa-bars';
+        document.body.style.overflow = ''; // Unlock body scroll
+      }
+    });
+  }
+
   // Initialize Navbar User State
   function renderNavbarUser() {
     const user = window.NetPrimeState.getCurrentUser();
